@@ -140,9 +140,6 @@ async fn main() -> Result<()> {
 
     stream.play()?;
 
-    // Let recording go for roughly three seconds.
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
     println!("Press enter to stop recording");
     std::io::stdin().lock().read_line(&mut String::new())?;
 
