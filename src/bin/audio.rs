@@ -145,6 +145,7 @@ async fn main() -> Result<()> {
 
     drop(stream);
     writer.lock().unwrap().take().unwrap().finalize()?;
+    println!("Recording stopped. Transcribing");
 
     transcribe_audio(&audio_path).await?;
     Ok(())
