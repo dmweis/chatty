@@ -1,4 +1,3 @@
-
 use async_openai::{
     types::{
         ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs,
@@ -9,11 +8,7 @@ use async_openai::{
 use chatty::configuration::get_configuration;
 use clap::Parser;
 
-
 use futures::StreamExt;
-
-
-
 
 #[derive(Parser, Debug)]
 #[command()]

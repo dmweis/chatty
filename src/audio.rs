@@ -1,9 +1,6 @@
 use anyhow::{Context, Result};
-
-use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample};
-
 use std::io::BufRead;
 use std::io::Cursor;
 use std::io::{Seek, Write};
@@ -13,31 +10,9 @@ use tempdir::TempDir;
 // heavily inspired by cpal record_wav example
 // https://github.com/RustAudio/cpal/blob/master/examples/record_wav.rs
 
-#[derive(Parser, Debug)]
-#[command()]
-struct Cli {
-    /// The audio device to use
-    #[arg(short, long, default_value_t = String::from("default"))]
-    device: String,
-
-    /// Use the JACK host
-    #[cfg(all(
-        any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd"
-        ),
-        feature = "jack"
-    ))]
-    #[arg(short, long)]
-    #[allow(dead_code)]
-    jack: bool,
-}
-
 /// this is a weird method because it talks to the cli
 pub fn record_audio_with_cli(
-    _use_jack: bool,
+    #[allow(unused_variables)] use_jack: bool,
     selected_device: Option<String>,
 ) -> Result<(TempDir, PathBuf)> {
     // Conditionally compile with jack if the feature is specified.
