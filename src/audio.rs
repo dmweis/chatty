@@ -1,12 +1,12 @@
-use crate::configuration::get_configuration;
+
 use anyhow::{Context, Result};
-use async_openai::{types::CreateTranscriptionRequestArgs, Client};
+
 use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample};
-use std::fs::File;
+
 use std::io::Cursor;
-use std::io::{BufRead, BufWriter};
+use std::io::{BufRead};
 use std::io::{Seek, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -38,7 +38,7 @@ struct Cli {
 
 /// this is a weird method because it talks to the cli
 pub async fn record_audio_with_cli(
-    use_jack: bool,
+    _use_jack: bool,
     selected_device: Option<String>,
 ) -> Result<(TempDir, PathBuf)> {
     // Conditionally compile with jack if the feature is specified.
@@ -157,7 +157,7 @@ pub async fn record_audio_with_cli(
 
 /// this is a weird method because it talks to the cli
 pub fn record_audio_with_cli_to_memory(
-    use_jack: bool,
+    _use_jack: bool,
     selected_device: Option<String>,
 ) -> Result<Vec<u8>> {
     // Conditionally compile with jack if the feature is specified.

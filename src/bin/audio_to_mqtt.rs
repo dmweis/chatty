@@ -1,15 +1,15 @@
-use anyhow::{Context, Result};
-use async_openai::{types::CreateTranscriptionRequestArgs, Client};
+use anyhow::{Result};
+
 use chatty::configuration::get_configuration;
 use chatty::mqtt::start_mqtt_service;
 use clap::Parser;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{FromSample, Sample};
-use rumqttc::{self, AsyncClient, MqttOptions, QoS};
-use std::fs::File;
-use std::io::{BufRead, BufWriter};
-use std::sync::{Arc, Mutex};
-use tempdir::TempDir;
+
+
+use rumqttc::{self, QoS};
+
+
+
+
 // heavily inspired by cpal record_wav example
 // https://github.com/RustAudio/cpal/blob/master/examples/record_wav.rs
 
