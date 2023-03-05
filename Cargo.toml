@@ -13,9 +13,14 @@ version = "0.1.0"
 name = "audio"
 required-features = ["audio"]
 
+[[bin]]
+name = "audio_to_mqtt"
+required-features = ["audio"]
+
 [features]
 audio = ["cpal", "hound", "tempdir"]
-default = []
+default = ["mqtt"]
+mqtt = ["rumqttc"]
 
 [dependencies]
 futures = "0.3"
@@ -42,3 +47,6 @@ tracing-subscriber = {version = "0.3", features = [
 cpal = {version = "0.15.0", optional = true}
 hound = {version = "3.5", optional = true}
 tempdir = {version = "0.3.7", optional = true}
+
+# mqtt
+rumqttc = {version = "0.20.0", optional = true}
