@@ -40,5 +40,12 @@ async fn main() -> anyhow::Result<()> {
         let response = chat_manager.next_message(&response.text, &client).await?;
 
         println!("Query:\n{}", response);
+
+        wait_for_enter();
     }
+}
+
+fn wait_for_enter() {
+    println!("Press enter to continue recording");
+    std::io::stdin().lock().read_line(&mut String::new())?;
 }
