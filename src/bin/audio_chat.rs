@@ -1,6 +1,7 @@
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
-use chatty::{chat_manager, configuration::get_configuration};
+use chatty::{chat_manager, configuration::get_configuration, mqtt::start_mqtt_service};
 use clap::Parser;
+use rumqttc::QoS;
 use std::io::BufRead;
 
 #[derive(Parser, Debug)]
@@ -22,6 +23,8 @@ async fn main() -> anyhow::Result<()> {
     let config = get_configuration()?;
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
+    let mqtt_client = start_mqtt_service(&config.mqtt)?;
+
     let mut chat_manager =
         chat_manager::ChatHistory::new("You are Joi. The cheerful helpful AI assistant.")?;
 
@@ -41,6 +44,10 @@ async fn main() -> anyhow::Result<()> {
         let response = chat_manager.next_message(&response.text, &client).await?;
 
         println!("Query:\n{}", response);
+
+        mqtt_client
+            .publish("home_speak/say/cheerful", QoS::AtMostOnce, false, response)
+            .await?;
 
         wait_for_enter()?;
     }
