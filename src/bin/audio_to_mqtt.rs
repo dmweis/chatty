@@ -19,6 +19,7 @@ struct Cli {
     device: Option<String>,
 
     /// Use the JACK host
+    #[arg(short, long)]
     jack: bool,
 }
 
