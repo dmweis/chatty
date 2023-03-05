@@ -7,6 +7,7 @@ use std::io::{Seek, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tempdir::TempDir;
+use tracing::*;
 // heavily inspired by cpal record_wav example
 // https://github.com/RustAudio/cpal/blob/master/examples/record_wav.rs
 
@@ -58,12 +59,12 @@ pub fn record_audio_with_cli(
     }
     .context("failed to find input device")?;
 
-    println!("Input device: {}", device.name()?);
+    debug!("Input device: {}", device.name()?);
 
     let config = device
         .default_input_config()
         .context("Failed to get default input config")?;
-    println!("Default input config: {:?}", config);
+    debug!("Default input config: {:?}", config);
 
     // The WAV file we're recording to.
 
@@ -82,7 +83,7 @@ pub fn record_audio_with_cli(
     let writer_2 = writer.clone();
 
     let err_fn = move |err| {
-        eprintln!("an error occurred on stream: {}", err);
+        error!("an error occurred on stream: {}", err);
     };
 
     let stream = match config.sample_format() {
@@ -177,12 +178,12 @@ pub fn record_audio_with_cli_to_memory(
     }
     .context("failed to find input device")?;
 
-    println!("Input device: {}", device.name()?);
+    debug!("Input device: {}", device.name()?);
 
     let config = device
         .default_input_config()
         .context("Failed to get default input config")?;
-    println!("Default input config: {:?}", config);
+    debug!("Default input config: {:?}", config);
 
     // The WAV file we're recording to.
 
@@ -202,7 +203,7 @@ pub fn record_audio_with_cli_to_memory(
     let writer_2 = writer.clone();
 
     let err_fn = move |err| {
-        eprintln!("an error occurred on stream: {}", err);
+        error!("an error occurred on stream: {}", err);
     };
 
     let stream = match config.sample_format() {

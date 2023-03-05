@@ -5,3 +5,5 @@ pub mod audio;
 pub mod configuration;
 #[cfg(feature = "mqtt")]
 pub mod mqtt;
+
+pub mod chat_manager;
