@@ -44,6 +44,8 @@ async fn main() -> anyhow::Result<()> {
 
     let response = client.audio().transcribe(request).await?;
 
+    println!("Query:\n{}", response.text);
+
     let request = CreateChatCompletionRequestArgs::default()
         .model("gpt-3.5-turbo")
         .messages([ChatCompletionRequestMessageArgs::default()
