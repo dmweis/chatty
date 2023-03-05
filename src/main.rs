@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod configuration;
 
 use async_openai::{
