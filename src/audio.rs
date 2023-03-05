@@ -124,7 +124,7 @@ pub fn record_audio_with_cli(
 
     drop(stream);
     writer.lock().unwrap().take().unwrap().finalize()?;
-    println!("Recording stopped. Transcribing");
+    println!("Recording stopped");
 
     Ok((temp_dir, audio_path))
 }
@@ -244,7 +244,7 @@ pub fn record_audio_with_cli_to_memory(
 
     drop(stream);
     writer.lock().unwrap().take().unwrap().finalize()?;
-    println!("Recording stopped. Transcribing");
+    println!("Recording stopped");
 
     let data = memory_buffer_2.cursor.lock().unwrap().clone();
 
