@@ -14,6 +14,10 @@ name = "audio"
 required-features = ["audio"]
 
 [[bin]]
+name = "audio_chat"
+required-features = ["audio"]
+
+[[bin]]
 name = "audio_to_mqtt"
 required-features = ["audio"]
 
