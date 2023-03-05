@@ -1,6 +1,7 @@
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
 use chatty::{chat_manager, configuration::get_configuration};
 use clap::Parser;
+use std::io::BufRead;
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -41,11 +42,12 @@ async fn main() -> anyhow::Result<()> {
 
         println!("Query:\n{}", response);
 
-        wait_for_enter();
+        wait_for_enter()?;
     }
 }
 
-fn wait_for_enter() {
+fn wait_for_enter() -> anyhow::Result<()> {
     println!("Press enter to continue recording");
     std::io::stdin().lock().read_line(&mut String::new())?;
+    Ok(())
 }
