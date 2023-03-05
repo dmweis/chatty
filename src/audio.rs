@@ -1,12 +1,11 @@
-
 use anyhow::{Context, Result};
 
 use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample};
 
+use std::io::BufRead;
 use std::io::Cursor;
-use std::io::{BufRead};
 use std::io::{Seek, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -37,7 +36,7 @@ struct Cli {
 }
 
 /// this is a weird method because it talks to the cli
-pub async fn record_audio_with_cli(
+pub fn record_audio_with_cli(
     _use_jack: bool,
     selected_device: Option<String>,
 ) -> Result<(TempDir, PathBuf)> {

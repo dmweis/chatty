@@ -1,13 +1,9 @@
-#![allow(dead_code)]
-
-mod configuration;
-
 use async_openai::{
     types::{ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs, Role},
     Client,
 };
+use chatty::configuration::get_configuration;
 use clap::Parser;
-use configuration::get_configuration;
 use futures::StreamExt;
 
 #[derive(Parser)]
