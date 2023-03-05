@@ -49,4 +49,5 @@ hound = {version = "3.5", optional = true}
 tempdir = {version = "0.3.7", optional = true}
 
 # mqtt
+base64 = "0.21.0"
 rumqttc = {version = "0.20.0", optional = true}

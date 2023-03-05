@@ -14,4 +14,20 @@ pub fn get_configuration() -> anyhow::Result<AppConfig> {
 #[derive(Deserialize, Debug, Clone)]
 pub struct AppConfig {
     pub open_ai_api_key: String,
+    pub mqtt: MqttConfig,
+}
+
+// weird serde default thing
+const DEFAULT_MQTT_PORT: u16 = 1883;
+
+const fn default_mqtt_port() -> u16 {
+    DEFAULT_MQTT_PORT
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct MqttConfig {
+    pub broker_host: String,
+    #[serde(default = "default_mqtt_port")]
+    pub broker_port: u16,
+    pub client_id: String,
 }

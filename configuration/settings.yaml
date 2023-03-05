@@ -1,1 +1,4 @@
 open_ai_api_key: TEST_TOKEN
+mqtt:
+  broker_host: "homepi.local"
+  client_id: "chatty_commands_node"
