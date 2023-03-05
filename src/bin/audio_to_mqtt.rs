@@ -1,14 +1,10 @@
-use anyhow::{Result};
+use anyhow::Result;
 
 use chatty::configuration::get_configuration;
 use chatty::mqtt::start_mqtt_service;
 use clap::Parser;
 
-
 use rumqttc::{self, QoS};
-
-
-
 
 // heavily inspired by cpal record_wav example
 // https://github.com/RustAudio/cpal/blob/master/examples/record_wav.rs
