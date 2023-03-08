@@ -10,10 +10,6 @@ repository = "https://github.com/dmweis/chatty"
 version = "0.1.0"
 
 [[bin]]
-name = "audio"
-required-features = ["audio"]
-
-[[bin]]
 name = "audio_chat"
 required-features = ["audio"]
 
