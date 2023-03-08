@@ -1,7 +1,9 @@
 use async_openai::Client;
 use chatty::{
     chat_manager::{self, generate_system_instructions},
-    configuration::{read_user_config_file, save_user_config_file, ChattyCliConfig},
+    configuration::{
+        get_configuration, read_user_config_file, save_user_config_file, ChattyCliConfig,
+    },
 };
 use clap::Parser;
 use dialoguer::console::{Emoji, Term};
@@ -21,6 +23,9 @@ struct Cli {
     /// save default config and exit
     #[arg(long)]
     create_config: bool,
+    /// copy token from local config to user config
+    #[arg(long)]
+    copy_local_config: bool,
 }
 
 #[tokio::main]
@@ -31,6 +36,16 @@ async fn main() -> anyhow::Result<()> {
         // this is a meh way to do this
         let config_new = ChattyCliConfig {
             open_ai_api_key: String::from("EMPTY_TOKEN"),
+        };
+        save_user_config_file(config_new)?;
+        return Ok(());
+    }
+
+    if cli.copy_local_config {
+        // this is a meh way to do this
+        let local_config = get_configuration()?;
+        let config_new = ChattyCliConfig {
+            open_ai_api_key: local_config.open_ai_api_key,
         };
         save_user_config_file(config_new)?;
         return Ok(());
