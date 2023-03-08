@@ -27,17 +27,17 @@ fn get_config_file_path() -> Result<PathBuf> {
     Ok(config_dir_path.join(CHATTY_CLI_CONFIG_FILE_NAME))
 }
 
-pub fn read_user_config_file() -> Result<ChattyCliConfig> {
+pub fn read_user_config_file() -> Result<AppConfig> {
     let config_file_path = get_config_file_path()?;
     let settings = Config::builder()
         .add_source(config::File::from(config_file_path))
         .add_source(config::Environment::with_prefix("CHATTY"))
         .build()?;
 
-    Ok(settings.try_deserialize::<ChattyCliConfig>()?)
+    Ok(settings.try_deserialize::<AppConfig>()?)
 }
 
-pub fn save_user_config_file(config: ChattyCliConfig) -> Result<()> {
+pub fn save_user_config_file(config: AppConfig) -> Result<()> {
     let config_file_path = get_config_file_path()?.with_extension(CHATTY_CLI_CONFIG_FILE_EXTENSION);
 
     std::fs::create_dir_all(
@@ -62,14 +62,9 @@ pub fn get_configuration() -> anyhow::Result<AppConfig> {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct ChattyCliConfig {
-    pub open_ai_api_key: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
 pub struct AppConfig {
     pub open_ai_api_key: String,
-    pub mqtt: MqttConfig,
+    pub mqtt: Option<MqttConfig>,
 }
 
 // weird serde default thing
@@ -79,7 +74,7 @@ const fn default_mqtt_port() -> u16 {
     DEFAULT_MQTT_PORT
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MqttConfig {
     pub broker_host: String,
     #[serde(default = "default_mqtt_port")]

@@ -1,3 +1,4 @@
+use anyhow::Context;
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
 use chatty::{chat_manager, configuration::get_configuration, mqtt::start_mqtt_service};
 use clap::Parser;
@@ -22,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let config = get_configuration()?;
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
-    let mqtt_client = start_mqtt_service(&config.mqtt)?;
+    let mqtt_client = start_mqtt_service(&config.mqtt.context("mqtt config missing")?)?;
 
     let mut chat_manager =
         chat_manager::ChatHistory::new("You are Joi. The cheerful helpful AI assistant.")?;

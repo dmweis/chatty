@@ -77,7 +77,7 @@ pub fn record_audio_with_cli(
     let writer = Arc::new(Mutex::new(Some(writer)));
 
     // A flag to indicate that recording is in progress.
-    println!("Begin recording...");
+    println!("Starting recording");
 
     // Run the input stream on a separate thread.
     let writer_2 = writer.clone();

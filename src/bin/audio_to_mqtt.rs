@@ -1,9 +1,7 @@
-use anyhow::Result;
-
+use anyhow::{Context, Result};
 use chatty::configuration::get_configuration;
 use chatty::mqtt::start_mqtt_service;
 use clap::Parser;
-
 use rumqttc::{self, QoS};
 
 // heavily inspired by cpal record_wav example
@@ -27,7 +25,7 @@ async fn main() -> Result<()> {
 
     let config = get_configuration()?;
 
-    let mqtt_client = start_mqtt_service(&config.mqtt)?;
+    let mqtt_client = start_mqtt_service(&config.mqtt.context("mqtt config missing")?)?;
 
     let audio = chatty::audio::record_audio_with_cli_to_memory(cli.jack, cli.device)?;
 
