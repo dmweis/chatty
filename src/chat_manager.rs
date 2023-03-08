@@ -31,7 +31,7 @@ pub fn generate_system_instructions() -> HashMap<String, String> {
         String::from("default"),
         format!(
             "You are ChatGPT, a large language model trained by OpenAI. 
-Answer as concisely as possible. Knowledge cutoff: {} Current date: {}",
+Answer as concisely as possible. Knowledge cutoff year {} Current date and time: {}",
             CHAT_MODEL_KNOWLEDGE_CUTOFF, current_time_str
         ),
     );
@@ -40,7 +40,7 @@ Answer as concisely as possible. Knowledge cutoff: {} Current date: {}",
         String::from("joi"),
         format!(
             "You are Joi. The cheerful and helpful AI assistant. 
-Knowledge cutoff: {} Current date: {}",
+Knowledge cutoff year {} Current date and time: {}",
             CHAT_MODEL_KNOWLEDGE_CUTOFF, current_time_str
         ),
     );
@@ -50,6 +50,8 @@ Knowledge cutoff: {} Current date: {}",
 
 pub struct ChatHistory {
     history: Vec<ChatCompletionRequestMessage>,
+    conversation_start: Option<DateTime<Local>>,
+    conversation_title: Option<String>,
 }
 
 impl ChatHistory {
@@ -58,7 +60,42 @@ impl ChatHistory {
             .content(prompt)
             .role(Role::System)
             .build()?];
-        Ok(Self { history })
+        let dt: DateTime<Local> = Local::now();
+        Ok(Self {
+            history,
+            conversation_start: Some(dt),
+            conversation_title: None,
+        })
+    }
+
+    /// fun attempt at generating titles for chats
+    /// would be great if this could be async
+    async fn populate_title_if_empty(&mut self, client: &Client) -> Result<()> {
+        if self.conversation_title.is_none() {
+            let mut history_copy = self.history.clone();
+
+            let message =
+                "How would you title this conversation up until before this message? Answer in all lowercase with underscores 
+\"_\" between words so that it can be used as a file name. Be concise.";
+
+            let user_message = ChatCompletionRequestMessageArgs::default()
+                .content(message)
+                .role(Role::User)
+                .build()?;
+
+            history_copy.push(user_message);
+
+            let request = CreateChatCompletionRequestArgs::default()
+                .model(CHAT_MODEL_NAME)
+                .messages(history_copy)
+                .build()?;
+
+            let response = client.chat().create(request).await?;
+
+            let title = response.choices[0].message.content.trim().to_owned();
+            self.conversation_title = Some(title);
+        }
+        Ok(())
     }
 
     pub async fn next_message(
@@ -86,6 +123,8 @@ impl ChatHistory {
             .build()?;
 
         self.history.push(added_response);
+
+        self.populate_title_if_empty(client).await?;
 
         Ok(response.choices[0].message.content.clone())
     }
@@ -157,6 +196,12 @@ impl ChatHistory {
 
         self.history.push(added_response);
 
+        self.populate_title_if_empty(client).await?;
+
+        if let Some(title) = &self.conversation_title {
+            term.set_title(title.replace('_', " "));
+        }
+
         Ok(response_content_buffer)
     }
 
@@ -166,8 +211,18 @@ impl ChatHistory {
 
         std::fs::create_dir_all(cache_dir).context("failed to crate user cache directory")?;
 
-        let time = current_time();
-        let file_path = cache_dir.join(format!("{time}.yaml"));
+        let time = self
+            .conversation_start
+            .unwrap_or_else(Local::now)
+            .to_rfc3339();
+
+        let title = self
+            .conversation_title
+            .clone()
+            .map(|title| format!("{title}_"))
+            .unwrap_or_default();
+
+        let file_path = cache_dir.join(format!("{title}{time}.yaml"));
 
         let history_for_storage: Vec<ChatHistoryElement> =
             self.history.iter().map(|element| element.into()).collect();

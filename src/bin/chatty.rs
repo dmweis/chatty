@@ -1,7 +1,7 @@
 use async_openai::Client;
 use chatty::{
     chat_manager::{self, generate_system_instructions},
-    configuration::{get_configuration, save_user_config_file, ChattyCliConfig},
+    configuration::{read_user_config_file, save_user_config_file, ChattyCliConfig},
 };
 use clap::Parser;
 use dialoguer::console::{Emoji, Term};
@@ -13,20 +13,30 @@ const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "ChatGPT");
 #[command()]
 struct Cli {
     /// disable streaming
-    #[arg(short, long)]
+    #[arg(long)]
     disable_streaming: bool,
+    /// do not save conversation
+    #[arg(long)]
+    no_save: bool,
+    /// save default config and exit
+    #[arg(long)]
+    create_config: bool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let config = get_configuration()?;
 
-    let config_new = ChattyCliConfig {
-        open_ai_api_key: config.open_ai_api_key.clone(),
-    };
+    if cli.create_config {
+        // this is a meh way to do this
+        let config_new = ChattyCliConfig {
+            open_ai_api_key: String::from("EMPTY_TOKEN"),
+        };
+        save_user_config_file(config_new)?;
+        return Ok(());
+    }
 
-    save_user_config_file(config_new)?;
+    let config = read_user_config_file()?;
 
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
@@ -51,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
                 .next_message_stream_stdout(&user_question, &client, &term)
                 .await?;
         }
-        chat_manager.save_to_file()?;
+        if !cli.no_save {
+            chat_manager.save_to_file()?;
+        }
     }
 }
