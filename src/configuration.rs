@@ -27,44 +27,48 @@ fn get_config_file_path() -> Result<PathBuf> {
     Ok(config_dir_path.join(CHATTY_CLI_CONFIG_FILE_NAME))
 }
 
-pub fn read_user_config_file() -> Result<AppConfig> {
-    let config_file_path = get_config_file_path()?;
-    let settings = Config::builder()
-        .add_source(config::File::from(config_file_path))
-        .add_source(config::Environment::with_prefix("CHATTY"))
-        .build()?;
-
-    Ok(settings.try_deserialize::<AppConfig>()?)
-}
-
-pub fn save_user_config_file(config: AppConfig) -> Result<()> {
-    let config_file_path = get_config_file_path()?.with_extension(CHATTY_CLI_CONFIG_FILE_EXTENSION);
-
-    std::fs::create_dir_all(
-        config_file_path
-            .parent()
-            .context("failed to get config file parent directory")?,
-    )?;
-
-    let file = std::fs::File::create(config_file_path)?;
-    serde_yaml::to_writer(file, &config)?;
-    Ok(())
-}
-
-pub fn get_configuration() -> anyhow::Result<AppConfig> {
-    let settings = Config::builder()
-        .add_source(config::File::with_name("configuration/settings"))
-        .add_source(config::File::with_name("configuration/dev_settings").required(false))
-        .add_source(config::Environment::with_prefix("APP"))
-        .build()?;
-
-    Ok(settings.try_deserialize::<AppConfig>()?)
-}
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AppConfig {
     pub open_ai_api_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mqtt: Option<MqttConfig>,
+}
+
+impl AppConfig {
+    pub fn load_dev_config() -> anyhow::Result<Self> {
+        let settings = Config::builder()
+            .add_source(config::File::with_name("configuration/settings"))
+            .add_source(config::File::with_name("configuration/dev_settings").required(false))
+            .add_source(config::Environment::with_prefix("APP"))
+            .build()?;
+
+        Ok(settings.try_deserialize::<AppConfig>()?)
+    }
+
+    pub fn load_user_config() -> anyhow::Result<Self> {
+        let config_file_path = get_config_file_path()?;
+        let settings = Config::builder()
+            .add_source(config::File::from(config_file_path))
+            .add_source(config::Environment::with_prefix("CHATTY"))
+            .build()?;
+
+        Ok(settings.try_deserialize::<AppConfig>()?)
+    }
+
+    pub fn save_user_config(&self) -> anyhow::Result<()> {
+        let config_file_path =
+            get_config_file_path()?.with_extension(CHATTY_CLI_CONFIG_FILE_EXTENSION);
+
+        std::fs::create_dir_all(
+            config_file_path
+                .parent()
+                .context("failed to get config file parent directory")?,
+        )?;
+
+        let file = std::fs::File::create(config_file_path)?;
+        serde_yaml::to_writer(file, self)?;
+        Ok(())
+    }
 }
 
 // weird serde default thing

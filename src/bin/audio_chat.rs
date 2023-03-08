@@ -1,6 +1,6 @@
 use anyhow::Context;
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
-use chatty::{chat_manager, configuration::get_configuration, mqtt::start_mqtt_service};
+use chatty::{chat_manager, configuration::AppConfig, mqtt::start_mqtt_service};
 use clap::Parser;
 use rumqttc::QoS;
 use std::io::BufRead;
@@ -20,7 +20,7 @@ struct Cli {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let config = get_configuration()?;
+    let config = AppConfig::load_dev_config()?;
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
     let mqtt_client = start_mqtt_service(&config.mqtt.context("mqtt config missing")?)?;

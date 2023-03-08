@@ -1,7 +1,7 @@
 use async_openai::Client;
 use chatty::{
     chat_manager::{self, generate_system_instructions},
-    configuration::{get_configuration, read_user_config_file, save_user_config_file, AppConfig},
+    configuration::AppConfig,
 };
 use clap::Parser;
 use dialoguer::console::{Emoji, Term};
@@ -36,22 +36,22 @@ async fn main() -> anyhow::Result<()> {
             open_ai_api_key: String::from("EMPTY_TOKEN"),
             mqtt: None,
         };
-        save_user_config_file(config_new)?;
+        config_new.save_user_config()?;
         return Ok(());
     }
 
     if cli.copy_local_config {
         // this is a meh way to do this
-        let local_config = get_configuration()?;
+        let local_config = AppConfig::load_dev_config()?;
         let config_new = AppConfig {
             open_ai_api_key: local_config.open_ai_api_key,
             mqtt: None,
         };
-        save_user_config_file(config_new)?;
+        config_new.save_user_config()?;
         return Ok(());
     }
 
-    let config = read_user_config_file()?;
+    let config = AppConfig::load_user_config()?;
 
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 

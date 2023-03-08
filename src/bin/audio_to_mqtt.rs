@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use chatty::configuration::get_configuration;
+use chatty::configuration::AppConfig;
 use chatty::mqtt::start_mqtt_service;
 use clap::Parser;
 use rumqttc::{self, QoS};
@@ -23,7 +23,7 @@ struct Cli {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let config = get_configuration()?;
+    let config = AppConfig::load_dev_config()?;
 
     let mqtt_client = start_mqtt_service(&config.mqtt.context("mqtt config missing")?)?;
 

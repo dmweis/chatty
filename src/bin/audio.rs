@@ -5,7 +5,7 @@ use async_openai::{
     },
     Client,
 };
-use chatty::configuration::get_configuration;
+use chatty::configuration::AppConfig;
 use clap::Parser;
 
 use futures::StreamExt;
@@ -30,7 +30,7 @@ struct Cli {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    let config = get_configuration()?;
+    let config = AppConfig::load_dev_config()?;
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
     let (_temp_dir, audio_path) = chatty::audio::record_audio_with_cli(cli.jack, cli.device)?;
