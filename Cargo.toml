@@ -39,6 +39,7 @@ clap = {version = "4.1.8", features = ["derive"]}
 config = "0.13.3"
 serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"
+serde_yaml = "0.9"
 
 tracing = {version = "0.1", features = ["log"]}
 tracing-subscriber = {version = "0.3", features = [
@@ -55,3 +56,9 @@ tempdir = {version = "0.3.7", optional = true}
 # mqtt
 base64 = "0.21.0"
 rumqttc = {version = "0.20.0", optional = true}
+
+# terminal stuff
+chrono = "0.4"
+dialoguer = "0.10.3"
+directories = "4.0"
+termimad = "0.22"

@@ -19,7 +19,6 @@ struct Cli {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-
     let config = get_configuration()?;
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
@@ -40,10 +39,13 @@ async fn main() -> anyhow::Result<()> {
             .build()?;
 
         let response = client.audio().transcribe(request).await?;
+        let user_question = response.text;
 
-        let response = chat_manager.next_message(&response.text, &client).await?;
+        println!("User:\n\n{}", user_question);
 
-        println!("Query:\n{}", response);
+        let response = chat_manager.next_message(&user_question, &client).await?;
+
+        println!("ChatGPT:\n\n{}", response);
 
         mqtt_client
             .publish("home_speak/say/cheerful", QoS::AtMostOnce, false, response)

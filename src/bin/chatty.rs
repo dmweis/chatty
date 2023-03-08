@@ -1,17 +1,20 @@
-use async_openai::{
-    types::{ChatCompletionRequestMessageArgs, CreateChatCompletionRequestArgs, Role},
-    Client,
+use async_openai::Client;
+use chatty::{
+    chat_manager::{self, generate_system_instructions},
+    configuration::{get_configuration, save_user_config_file, ChattyCliConfig},
 };
-use chatty::configuration::get_configuration;
 use clap::Parser;
-use futures::StreamExt;
+use dialoguer::console::{Emoji, Term};
+
+const ROBOT_EMOJI: Emoji = Emoji("🤖", "ChatGPT");
+const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "ChatGPT");
 
 #[derive(Parser)]
 #[command()]
 struct Cli {
-    /// use streaming
+    /// disable streaming
     #[arg(short, long)]
-    stream: bool,
+    disable_streaming: bool,
 }
 
 #[tokio::main]
@@ -19,45 +22,35 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let config = get_configuration()?;
 
+    let config_new = ChattyCliConfig {
+        open_ai_api_key: config.open_ai_api_key.clone(),
+    };
+
+    save_user_config_file(config_new)?;
+
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
-    let request = CreateChatCompletionRequestArgs::default()
-        .model("gpt-3.5-turbo")
-        .messages([ChatCompletionRequestMessageArgs::default()
-            .content("write a song if Coldplay and AR Rahman collaborated together")
-            .role(Role::User)
-            .build()?])
-        .build()?;
+    let system_messages = generate_system_instructions();
 
-    if cli.stream {
-        let mut stream = client.chat().create_stream(request).await?;
+    let mut chat_manager = chat_manager::ChatHistory::new(&system_messages["joi"])?;
 
-        // For reasons not documented in OpenAI docs / OpenAPI spec, the response of streaming call is different and doesn't include all the same fields.
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(response) => {
-                    response.choices.iter().for_each(|chat_choice| {
-                        if let Some(ref content) = chat_choice.delta.content {
-                            print!("{}", content);
-                        }
-                    });
-                }
-                Err(err) => {
-                    println!("error: {err}");
-                }
-            }
+    let term = Term::stdout();
+
+    loop {
+        term.write_line(&format!("{QUESTION_MARK_EMOJI} Question:\n"))?;
+        let user_question = term.read_line()?;
+
+        term.write_line(&format!("\n{ROBOT_EMOJI} ChatGPT:\n"))?;
+
+        if cli.disable_streaming {
+            let response = chat_manager.next_message(&user_question, &client).await?;
+            term.write_line(&response)?;
+            term.write_line("")?;
+        } else {
+            let _response = chat_manager
+                .next_message_stream_stdout(&user_question, &client, &term)
+                .await?;
         }
-    } else {
-        let response = client.chat().create(request).await?;
-
-        println!("\nResponse:\n");
-        for choice in response.choices {
-            println!(
-                "{}: Role: {}  Content: {}",
-                choice.index, choice.message.role, choice.message.content
-            );
-        }
+        chat_manager.save_to_file()?;
     }
-
-    Ok(())
 }
