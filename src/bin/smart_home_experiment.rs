@@ -88,7 +88,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
     let mut smart_home_state = SmartHomeState::default();
 
     // this is an odd way to do it :D
-    if let Ok(message) = message_receiver.try_recv() {
+    while let Ok(message) = message_receiver.try_recv() {
         if message.topic == String::from("chatty/home_state/simple") {
             smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
         }
@@ -107,6 +107,13 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
         let response = client.audio().transcribe(request).await?;
         let user_question = response.text;
+
+        // make sure we are not reading outdated info
+        while let Ok(message) = message_receiver.try_recv() {
+            if message.topic == String::from("chatty/home_state/simple") {
+                smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
+            }
+        }
 
         let smart_home_state_json = smart_home_state.to_json()?;
 
@@ -170,12 +177,6 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
         if !cli.no_save {
             chat_manager.save_to_file()?;
-        }
-
-        while let Ok(message) = message_receiver.try_recv() {
-            if message.topic == String::from("chatty/home_state/simple") {
-                smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
-            }
         }
 
         wait_for_enter()?;
