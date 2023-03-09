@@ -98,6 +98,19 @@ impl ChatHistory {
         Ok(())
     }
 
+    /// Insert message to history
+    ///
+    /// does *NOT* talk to the api
+    /// only useful for manipulating history of chat
+    pub fn manually_insert_message(&mut self, message: &str, role: Role) -> Result<()> {
+        let message = ChatCompletionRequestMessageArgs::default()
+            .content(message)
+            .role(role)
+            .build()?;
+        self.history.push(message);
+        Ok(())
+    }
+
     pub async fn next_message(
         &mut self,
         user_message: &str,
