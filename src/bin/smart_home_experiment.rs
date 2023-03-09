@@ -3,7 +3,7 @@ use async_openai::{types::CreateTranscriptionRequestArgs, Client};
 use chatty::{
     chat_manager::{self},
     configuration::AppConfig,
-    mqtt::start_mqtt_service,
+    mqtt::start_mqtt_service_with_subs,
 };
 use clap::Parser;
 use dialoguer::console::{style, Emoji, Term};
@@ -68,7 +68,11 @@ async fn main() -> anyhow::Result<()> {
 
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
-    let mqtt_client = start_mqtt_service(&config.mqtt.context("mqtt config missing")?)?;
+    let (mqtt_client, mut message_receiver) = start_mqtt_service_with_subs(
+        &config.mqtt.context("mqtt config missing")?,
+        vec![String::from("chatty/home_state/simple")],
+    )
+    .await?;
 
     let system_messages = format!(
         "You are an AI in charge of a smart home. Each message will start with 
@@ -82,6 +86,13 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
     let term = Term::stdout();
 
     let mut smart_home_state = SmartHomeState::default();
+
+    // this is an odd way to do it :D
+    if let Ok(message) = message_receiver.try_recv() {
+        if message.topic == String::from("chatty/home_state/simple") {
+            smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
+        }
+    }
 
     loop {
         let (_temp_dir, audio_path) =
@@ -134,7 +145,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                     .publish(
                         "chatty/home_state/simple",
                         QoS::AtMostOnce,
-                        false,
+                        true,
                         smart_home_state.to_json()?,
                     )
                     .await?;
@@ -161,6 +172,12 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
             chat_manager.save_to_file()?;
         }
 
+        while let Ok(message) = message_receiver.try_recv() {
+            if message.topic == String::from("chatty/home_state/simple") {
+                smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
+            }
+        }
+
         wait_for_enter()?;
     }
 }
@@ -181,6 +198,10 @@ impl SmartHomeState {
         Ok(serde_json::from_str(json)?)
     }
 
+    pub fn from_json_slice(data: &[u8]) -> anyhow::Result<Self> {
+        Ok(serde_json::from_slice(data)?)
+    }
+
     pub fn to_json(&self) -> anyhow::Result<String> {
         Ok(serde_json::to_string_pretty(self)?)
     }
@@ -189,7 +210,7 @@ impl SmartHomeState {
 impl Default for SmartHomeState {
     fn default() -> Self {
         let mut lights = HashMap::new();
-        lights.insert(String::from("bedroom"), LightState::On);
+        lights.insert(String::from("bedroom"), LightState::Off);
         lights.insert(String::from("living_room"), LightState::Off);
         lights.insert(String::from("hallway"), LightState::Off);
         Self { lights }
