@@ -73,7 +73,8 @@ async fn main() -> anyhow::Result<()> {
     let system_messages = format!(
         "You are an AI in charge of a smart home. Each message will start with 
 json of the current home status followed by a user request.
-Respond with json of the updated smart home state followed by optional message for the user."
+Respond with json of the updated smart home state followed by optional message for the user.
+Message for user should be prefaced with a line that says \"MESSAGE:\""
     );
 
     let mut chat_manager = chat_manager::ChatHistory::new(&system_messages)?;
@@ -128,13 +129,32 @@ Respond with json of the updated smart home state followed by optional message f
                 smart_home_state = SmartHomeState::from_json(json)?;
 
                 term.write_line(&format!("{}", style(smart_home_state.to_json()?).red()))?;
+
+                mqtt_client
+                    .publish(
+                        "chatty/home_state/simple",
+                        QoS::AtMostOnce,
+                        false,
+                        smart_home_state.to_json()?,
+                    )
+                    .await?;
             }
         }
 
-        if !cli.mute {
-            mqtt_client
-                .publish("home_speak/say/cheerful", QoS::AtMostOnce, false, response)
-                .await?;
+        let user_message_start = response.find("MESSAGE:");
+
+        if let Some(user_message) = response.get(user_message_start.unwrap_or(0)..) {
+            let user_message_trimmed = user_message.replace("MESSAGE:", "").trim().to_owned();
+            if !cli.mute {
+                mqtt_client
+                    .publish(
+                        "home_speak/say/cheerful",
+                        QoS::AtMostOnce,
+                        false,
+                        user_message_trimmed,
+                    )
+                    .await?;
+            }
         }
 
         if !cli.no_save {
@@ -171,8 +191,7 @@ impl Default for SmartHomeState {
         let mut lights = HashMap::new();
         lights.insert(String::from("bedroom"), LightState::On);
         lights.insert(String::from("living_room"), LightState::Off);
-        lights.insert(String::from("kitchen"), LightState::On);
-        lights.insert(String::from("bathroom"), LightState::Off);
+        lights.insert(String::from("hallway"), LightState::Off);
         Self { lights }
     }
 }
