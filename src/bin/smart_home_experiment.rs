@@ -77,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
     let system_messages = format!(
         "You are an AI in charge of a smart home. Each message will start with 
 json of the current home status followed by a user request.
-Respond with json of the updated smart home state followed by optional message for the user.
+Respond with json of the updated smart home state followed by a message for the user.
 Message for user should be prefaced with a line that says \"MESSAGE:\""
     );
 
