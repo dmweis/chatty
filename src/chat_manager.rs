@@ -1,4 +1,4 @@
-use crate::utils::{now_rfc3339, CHAT_MODEL_KNOWLEDGE_CUTOFF, CHAT_MODEL_NAME};
+use crate::utils::{now_rfc3339, CHAT_GPT_KNOWLEDGE_CUTOFF, CHAT_GPT_MODEL_NAME};
 use anyhow::{Context, Result};
 use async_openai::{
     types::{
@@ -25,7 +25,7 @@ pub fn generate_system_instructions() -> HashMap<String, String> {
         format!(
             "You are ChatGPT, a large language model trained by OpenAI. 
 Answer as concisely as possible. Knowledge cutoff year {} Current date and time: {}",
-            CHAT_MODEL_KNOWLEDGE_CUTOFF, current_time_str
+            CHAT_GPT_KNOWLEDGE_CUTOFF, current_time_str
         ),
     );
 
@@ -34,7 +34,7 @@ Answer as concisely as possible. Knowledge cutoff year {} Current date and time:
         format!(
             "You are Joi. The cheerful and helpful AI assistant. 
 Knowledge cutoff year {} Current date and time: {}",
-            CHAT_MODEL_KNOWLEDGE_CUTOFF, current_time_str
+            CHAT_GPT_KNOWLEDGE_CUTOFF, current_time_str
         ),
     );
 
@@ -79,7 +79,7 @@ impl ChatHistory {
             history_copy.push(user_message);
 
             let request = CreateChatCompletionRequestArgs::default()
-                .model(CHAT_MODEL_NAME)
+                .model(CHAT_GPT_MODEL_NAME)
                 .messages(history_copy)
                 .build()?;
 
@@ -117,7 +117,7 @@ impl ChatHistory {
         self.history.push(user_message);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model(CHAT_MODEL_NAME)
+            .model(CHAT_GPT_MODEL_NAME)
             .messages(self.history.clone())
             .build()?;
 
@@ -149,7 +149,7 @@ impl ChatHistory {
         self.history.push(user_message);
 
         let request = CreateChatCompletionRequestArgs::default()
-            .model(CHAT_MODEL_NAME)
+            .model(CHAT_GPT_MODEL_NAME)
             .messages(self.history.clone())
             .build()?;
 

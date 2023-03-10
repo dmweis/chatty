@@ -4,12 +4,11 @@ use chatty::{
     chat_manager::{self, generate_system_instructions},
     configuration::AppConfig,
     mqtt::start_mqtt_service,
-    utils::{QUESTION_MARK_EMOJI, ROBOT_EMOJI, TRANSCRIBE_MODEL},
+    utils::{QUESTION_MARK_EMOJI, ROBOT_EMOJI, VOICE_TO_TEXT_TRANSCRIBE_MODEL},
 };
 use clap::Parser;
-use dialoguer::console::{Term};
+use dialoguer::console::Term;
 use rumqttc::QoS;
-use std::io::BufRead;
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -79,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
 
         let request = CreateTranscriptionRequestArgs::default()
             .file(audio_path)
-            .model(TRANSCRIBE_MODEL)
+            .model(VOICE_TO_TEXT_TRANSCRIBE_MODEL)
             .build()?;
 
         let response = client.audio().transcribe(request).await?;
@@ -95,7 +94,6 @@ async fn main() -> anyhow::Result<()> {
             term.write_line("")?;
             response
         } else {
-            
             chat_manager
                 .next_message_stream_stdout(&user_question, &client, &term)
                 .await?
@@ -111,12 +109,7 @@ async fn main() -> anyhow::Result<()> {
             chat_manager.save_to_file()?;
         }
 
-        wait_for_enter()?;
+        term.write_line("Press enter to continue recording")?;
+        term.read_line()?;
     }
-}
-
-fn wait_for_enter() -> anyhow::Result<()> {
-    println!("Press enter to continue recording");
-    std::io::stdin().lock().read_line(&mut String::new())?;
-    Ok(())
 }

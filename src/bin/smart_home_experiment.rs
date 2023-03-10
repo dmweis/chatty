@@ -4,7 +4,7 @@ use chatty::{
     chat_manager::{self},
     configuration::AppConfig,
     mqtt::start_mqtt_service_with_subs,
-    utils::{now_rfc3339, QUESTION_MARK_EMOJI, ROBOT_EMOJI, TRANSCRIBE_MODEL},
+    utils::{now_rfc3339, QUESTION_MARK_EMOJI, ROBOT_EMOJI, VOICE_TO_TEXT_TRANSCRIBE_MODEL},
 };
 use clap::Parser;
 use dialoguer::console::{style, Term};
@@ -73,7 +73,8 @@ async fn main() -> anyhow::Result<()> {
     let system_messages = "You are an AI in charge of a smart home. Each message will start with 
 json of the current home status followed by a user request.
 Respond with json of the updated smart home state followed by a message for the user.
-Message for user should be prefaced with a line that says \"MESSAGE:\"".to_string();
+Message for user should be prefaced with a line that says \"MESSAGE:\""
+        .to_string();
 
     let mut chat_manager = chat_manager::ChatHistory::new(&system_messages)?;
 
@@ -96,7 +97,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\"".to_strin
 
         let request = CreateTranscriptionRequestArgs::default()
             .file(audio_path)
-            .model(TRANSCRIBE_MODEL)
+            .model(VOICE_TO_TEXT_TRANSCRIBE_MODEL)
             .build()?;
 
         let response = client.audio().transcribe(request).await?;
@@ -126,7 +127,6 @@ Message for user should be prefaced with a line that says \"MESSAGE:\"".to_strin
             term.write_line("")?;
             response
         } else {
-            
             chat_manager
                 .next_message_stream_stdout(&message, &client, &term)
                 .await?
