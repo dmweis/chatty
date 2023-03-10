@@ -23,7 +23,7 @@ required-features = ["audio"]
 
 [features]
 audio = ["cpal", "hound", "tempdir"]
-default = ["mqtt"]
+default = ["mqtt", "audio"]
 mqtt = ["rumqttc"]
 
 [dependencies]

@@ -4,17 +4,13 @@ use chatty::{
     chat_manager::{self},
     configuration::AppConfig,
     mqtt::start_mqtt_service_with_subs,
+    utils::{now_rfc3339, QUESTION_MARK_EMOJI, ROBOT_EMOJI, TRANSCRIBE_MODEL},
 };
 use clap::Parser;
-use dialoguer::console::{style, Emoji, Term};
+use dialoguer::console::{style, Term};
 use rumqttc::QoS;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io::BufRead};
-
-const ROBOT_EMOJI: Emoji = Emoji("🤖", "ChatGPT");
-const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "ChatGPT");
-
-const TRANSCRIBE_MODEL: &str = "whisper-1";
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -74,12 +70,10 @@ async fn main() -> anyhow::Result<()> {
     )
     .await?;
 
-    let system_messages = format!(
-        "You are an AI in charge of a smart home. Each message will start with 
+    let system_messages = "You are an AI in charge of a smart home. Each message will start with 
 json of the current home status followed by a user request.
 Respond with json of the updated smart home state followed by a message for the user.
-Message for user should be prefaced with a line that says \"MESSAGE:\""
-    );
+Message for user should be prefaced with a line that says \"MESSAGE:\"".to_string();
 
     let mut chat_manager = chat_manager::ChatHistory::new(&system_messages)?;
 
@@ -89,7 +83,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
     // this is an odd way to do it :D
     while let Ok(message) = message_receiver.try_recv() {
-        if message.topic == String::from("chatty/home_state/simple") {
+        if message.topic == *"chatty/home_state/simple" {
             smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
         }
     }
@@ -110,15 +104,16 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
         // make sure we are not reading outdated info
         while let Ok(message) = message_receiver.try_recv() {
-            if message.topic == String::from("chatty/home_state/simple") {
+            if message.topic == *"chatty/home_state/simple" {
                 smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
             }
         }
 
         let smart_home_state_json = smart_home_state.to_json()?;
 
+        let current_date_time = now_rfc3339();
         let message = format!(
-            "HOUSE_STATE:\n```json\n{smart_home_state_json}\n```\nUSER_REQUEST:\n{user_question}"
+            "CURRENT_DATE_TIME: {current_date_time}\nHOUSE_STATE:\n```json\n{smart_home_state_json}\n```\nUSER_REQUEST:\n{user_question}"
         );
 
         term.write_line(&format!("{QUESTION_MARK_EMOJI} Question:\n{message}"))?;
@@ -131,31 +126,37 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
             term.write_line("")?;
             response
         } else {
-            let response = chat_manager
+            
+            chat_manager
                 .next_message_stream_stdout(&message, &client, &term)
-                .await?;
-            response
+                .await?
         };
 
         let json_range = response
-            .find("{")
-            .map(|start| response.rfind("}").map(|end| (start, end + 1)))
-            .flatten();
+            .find('{')
+            .and_then(|start| response.rfind('}').map(|end| (start, end + 1)));
 
         if let Some((json_start, json_end)) = json_range {
             if let Some(json) = response.get(json_start..json_end) {
-                smart_home_state = SmartHomeState::from_json(json)?;
+                match SmartHomeState::from_json(json) {
+                    Ok(parsed_state) => {
+                        smart_home_state = parsed_state;
+                        term.write_line(&format!("{}", style(smart_home_state.to_json()?).red()))?;
 
-                term.write_line(&format!("{}", style(smart_home_state.to_json()?).red()))?;
-
-                mqtt_client
-                    .publish(
-                        "chatty/home_state/simple",
-                        QoS::AtMostOnce,
-                        true,
-                        smart_home_state.to_json()?,
-                    )
-                    .await?;
+                        mqtt_client
+                            .publish(
+                                "chatty/home_state/simple",
+                                QoS::AtMostOnce,
+                                true,
+                                smart_home_state.to_json()?,
+                            )
+                            .await?;
+                    }
+                    Err(error) => {
+                        // you could try again by showing ChatGPT the error :D
+                        term.write_line(&format!("Failed to parse json {:?}", error))?;
+                    }
+                }
             }
         }
 
@@ -192,7 +193,13 @@ fn wait_for_enter() -> anyhow::Result<()> {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SmartHomeState {
     pub lights: HashMap<String, LightState>,
+    // #[serde(default = "default_alarms")]
+    // pub alarms: Vec<Alarm>,
 }
+
+// fn default_alarms() -> Vec<Alarm> {
+//     vec![Alarm::default()]
+// }
 
 impl SmartHomeState {
     pub fn from_json(json: &str) -> anyhow::Result<Self> {
@@ -214,6 +221,7 @@ impl Default for SmartHomeState {
         lights.insert(String::from("bedroom"), LightState::Off);
         lights.insert(String::from("living_room"), LightState::Off);
         lights.insert(String::from("hallway"), LightState::Off);
+        // let alarms = vec![Alarm::default()];
         Self { lights }
     }
 }
@@ -222,4 +230,21 @@ impl Default for SmartHomeState {
 pub enum LightState {
     On,
     Off,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Alarm {
+    pub iso8601_time: String,
+    pub active: bool,
+    pub name: String,
+}
+
+impl Default for Alarm {
+    fn default() -> Self {
+        Self {
+            iso8601_time: String::from("2023-03-09T00:11:58Z"),
+            active: false,
+            name: String::from(""),
+        }
+    }
 }

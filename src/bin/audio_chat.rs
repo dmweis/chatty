@@ -4,16 +4,12 @@ use chatty::{
     chat_manager::{self, generate_system_instructions},
     configuration::AppConfig,
     mqtt::start_mqtt_service,
+    utils::{QUESTION_MARK_EMOJI, ROBOT_EMOJI, TRANSCRIBE_MODEL},
 };
 use clap::Parser;
-use dialoguer::console::{Emoji, Term};
+use dialoguer::console::{Term};
 use rumqttc::QoS;
 use std::io::BufRead;
-
-const ROBOT_EMOJI: Emoji = Emoji("🤖", "ChatGPT");
-const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "ChatGPT");
-
-const TRANSCRIBE_MODEL: &str = "whisper-1";
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -99,10 +95,10 @@ async fn main() -> anyhow::Result<()> {
             term.write_line("")?;
             response
         } else {
-            let response = chat_manager
+            
+            chat_manager
                 .next_message_stream_stdout(&user_question, &client, &term)
-                .await?;
-            response
+                .await?
         };
 
         if !cli.mute {

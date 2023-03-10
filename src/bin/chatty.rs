@@ -2,12 +2,10 @@ use async_openai::Client;
 use chatty::{
     chat_manager::{self, generate_system_instructions},
     configuration::AppConfig,
+    utils::{QUESTION_MARK_EMOJI, ROBOT_EMOJI},
 };
 use clap::Parser;
-use dialoguer::console::{Emoji, Term};
-
-const ROBOT_EMOJI: Emoji = Emoji("🤖", "ChatGPT");
-const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "ChatGPT");
+use dialoguer::console::Term;
 
 #[derive(Parser)]
 #[command()]

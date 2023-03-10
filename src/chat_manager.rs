@@ -1,3 +1,4 @@
+use crate::utils::{now_rfc3339, CHAT_MODEL_KNOWLEDGE_CUTOFF, CHAT_MODEL_NAME};
 use anyhow::{Context, Result};
 use async_openai::{
     types::{
@@ -14,18 +15,10 @@ use std::collections::HashMap;
 
 use crate::configuration::get_project_dirs;
 
-const CHAT_MODEL_NAME: &str = "gpt-3.5-turbo";
-const CHAT_MODEL_KNOWLEDGE_CUTOFF: &str = "2021";
-
-fn current_time() -> String {
-    let dt: DateTime<Local> = Local::now();
-    dt.to_rfc3339()
-}
-
 pub fn generate_system_instructions() -> HashMap<String, String> {
     let mut table = HashMap::new();
 
-    let current_time_str = current_time();
+    let current_time_str = now_rfc3339();
 
     table.insert(
         String::from("default"),
