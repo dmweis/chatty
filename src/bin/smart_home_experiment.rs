@@ -9,8 +9,9 @@ use chatty::{
 use clap::Parser;
 use dialoguer::console::{style, Term};
 use rumqttc::{Publish, QoS};
+use schemars::{schema_for, JsonSchema};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{collections::HashMap, io::BufRead};
+use std::io::BufRead;
 use tokio::sync::mpsc::Receiver;
 
 const SMART_HOME_MQTT_TOPIC: &str = "chatty/home_state/simple";
@@ -73,15 +74,28 @@ async fn main() -> anyhow::Result<()> {
     )
     .await?;
 
-    let system_messages = "You are an AI in charge of a smart home. Each message will start with 
+    let smart_home_state_schema = schema_for!(SmartHomeState);
+    let smart_home_state_schema_json = serde_json::to_string_pretty(&smart_home_state_schema)?;
+
+    let system_messages = format!(
+        "You are an AI in charge of a smart home. Each message will start with
 json of the current home status followed by a user request.
 Respond with json of the updated smart home state followed by a message for the user.
+Schema for smart home state is {smart_home_state_schema_json}.
 Message for user should be prefaced with a line that says \"MESSAGE:\""
-        .to_string();
+    );
+
+    //     let system_messages = "You are an AI in charge of a smart home. Each message will start with
+    // json of the current home status followed by a user request.
+    // Respond with json of the updated smart home state followed by a message for the user.
+    // Message for user should be prefaced with a line that says \"MESSAGE:\""
+    //         .to_owned();
 
     let mut chat_manager = chat_manager::ChatHistory::new(&system_messages)?;
 
     let term = Term::stdout();
+
+    term.write_line(&system_messages)?;
 
     let mut smart_home_state =
         wait_for_first_mqtt_message(&mut message_receiver, SMART_HOME_MQTT_TOPIC).await?;
@@ -187,16 +201,12 @@ fn wait_for_enter() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone)]
 pub struct SmartHomeState {
-    pub lights: HashMap<String, LightState>,
-    // #[serde(default = "default_alarms")]
-    // pub alarms: Vec<Alarm>,
+    pub lights: HomeLightsState,
+    #[serde(default)]
+    pub alarms: Vec<Alarm>,
 }
-
-// fn default_alarms() -> Vec<Alarm> {
-//     vec![Alarm::default()]
-// }
 
 impl SmartHomeState {
     pub fn from_json(json: &str) -> anyhow::Result<Self> {
@@ -212,38 +222,30 @@ impl SmartHomeState {
     }
 }
 
-impl Default for SmartHomeState {
-    fn default() -> Self {
-        let mut lights = HashMap::new();
-        lights.insert(String::from("bedroom"), LightState::Off);
-        lights.insert(String::from("living_room"), LightState::Off);
-        lights.insert(String::from("hallway"), LightState::Off);
-        // let alarms = vec![Alarm::default()];
-        Self { lights }
-    }
+#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, Copy)]
+pub struct HomeLightsState {
+    #[serde(default)]
+    bedroom: LightState,
+    #[serde(default)]
+    living_room: LightState,
+    #[serde(default)]
+    hallway: LightState,
+    #[serde(default)]
+    living_room_mood_lights: LightState,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy)]
+#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, Copy, Default)]
 pub enum LightState {
     On,
+    #[default]
     Off,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone)]
 pub struct Alarm {
     pub iso8601_time: String,
     pub active: bool,
     pub name: String,
-}
-
-impl Default for Alarm {
-    fn default() -> Self {
-        Self {
-            iso8601_time: String::from("2023-03-09T00:11:58Z"),
-            active: false,
-            name: String::from(""),
-        }
-    }
 }
 
 async fn wait_for_first_mqtt_message<T>(
@@ -254,7 +256,7 @@ where
     T: DeserializeOwned,
 {
     loop {
-        // this is an odd way to do it :D
+        // this is an odd way to do it
         while let Some(message) = message_receiver.recv().await {
             if message.topic == *topic {
                 return Ok(serde_json::from_slice::<T>(&message.payload)?);
