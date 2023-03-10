@@ -1,10 +1,7 @@
 use crate::configuration::MqttConfig;
 use rumqttc::{AsyncClient, ConnAck, Event, Incoming, MqttOptions, Publish, QoS, SubscribeFilter};
-use std::{sync::Arc, time::Duration};
-use tokio::sync::{
-    mpsc::{channel, Receiver},
-    Notify,
-};
+use std::time::Duration;
+use tokio::sync::mpsc::{channel, Receiver};
 use tracing::info;
 
 enum MqttUpdate {
@@ -49,10 +46,6 @@ pub async fn start_mqtt_service_with_subs(
     let (sender, receiver) = channel(10);
     let client_clone = client.clone();
 
-    // make sure we got at least one message
-    let notify = Arc::new(Notify::new());
-    let notify_clone = notify.clone();
-
     tokio::spawn(async move {
         let client = client_clone;
 
@@ -73,7 +66,6 @@ pub async fn start_mqtt_service_with_subs(
                         if let Err(e) = sender.send(publish).await {
                             eprintln!("Error sending message {e}");
                         }
-                        notify_clone.notify_waiters();
                     }
                     Event::Incoming(Incoming::ConnAck(_)) => {
                         client
@@ -89,9 +81,6 @@ pub async fn start_mqtt_service_with_subs(
             }
         }
     });
-
-    // meh
-    notify.notified().await;
 
     Ok((client, receiver))
 }

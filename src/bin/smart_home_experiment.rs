@@ -8,9 +8,12 @@ use chatty::{
 };
 use clap::Parser;
 use dialoguer::console::{style, Term};
-use rumqttc::QoS;
-use serde::{Deserialize, Serialize};
+use rumqttc::{Publish, QoS};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::HashMap, io::BufRead};
+use tokio::sync::mpsc::Receiver;
+
+const SMART_HOME_MQTT_TOPIC: &str = "chatty/home_state/simple";
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -66,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
 
     let (mqtt_client, mut message_receiver) = start_mqtt_service_with_subs(
         &config.mqtt.context("mqtt config missing")?,
-        vec![String::from("chatty/home_state/simple")],
+        vec![String::from(SMART_HOME_MQTT_TOPIC)],
     )
     .await?;
 
@@ -80,14 +83,8 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
     let term = Term::stdout();
 
-    let mut smart_home_state = SmartHomeState::default();
-
-    // this is an odd way to do it :D
-    while let Ok(message) = message_receiver.try_recv() {
-        if message.topic == *"chatty/home_state/simple" {
-            smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
-        }
-    }
+    let mut smart_home_state =
+        wait_for_first_mqtt_message(&mut message_receiver, SMART_HOME_MQTT_TOPIC).await?;
 
     loop {
         let (_temp_dir, audio_path) =
@@ -105,7 +102,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
         // make sure we are not reading outdated info
         while let Ok(message) = message_receiver.try_recv() {
-            if message.topic == *"chatty/home_state/simple" {
+            if message.topic == *SMART_HOME_MQTT_TOPIC {
                 smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
             }
         }
@@ -145,7 +142,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
 
                         mqtt_client
                             .publish(
-                                "chatty/home_state/simple",
+                                SMART_HOME_MQTT_TOPIC,
                                 QoS::AtMostOnce,
                                 true,
                                 smart_home_state.to_json()?,
@@ -245,6 +242,23 @@ impl Default for Alarm {
             iso8601_time: String::from("2023-03-09T00:11:58Z"),
             active: false,
             name: String::from(""),
+        }
+    }
+}
+
+async fn wait_for_first_mqtt_message<T>(
+    message_receiver: &mut Receiver<Publish>,
+    topic: &str,
+) -> anyhow::Result<T>
+where
+    T: DeserializeOwned,
+{
+    loop {
+        // this is an odd way to do it :D
+        while let Some(message) = message_receiver.recv().await {
+            if message.topic == *topic {
+                return Ok(serde_json::from_slice::<T>(&message.payload)?);
+            }
         }
     }
 }
