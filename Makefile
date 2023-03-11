@@ -1,5 +1,5 @@
 
 
-.PHONY: install-cli
-install-cli:
-	cargo install --path . --no-default-features --bin chatty
+.PHONY: install-gpt-cli
+install-gpt-cli:
+	cargo install --path . --no-default-features --bin gpt-cli

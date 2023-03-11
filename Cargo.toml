@@ -1,6 +1,6 @@
 [package]
 authors = ["David Michael Weis <dweis7@gmail.com>"]
-default-run = "chatty"
+default-run = "gpt-cli"
 description = "OpenAI playground"
 edition = "2021"
 license = "MIT OR APACHE"
@@ -13,6 +13,10 @@ version = "0.1.0"
 [[bin]]
 name = "audio_chat"
 required-features = ["audio"]
+
+[[bin]]
+name = "gpt-cli"
+path = "src/bin/gpt_cli.rs"
 
 [[bin]]
 name = "smart_home_experiment"
