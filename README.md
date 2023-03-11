@@ -16,10 +16,16 @@ See example in `configuration/settings.yaml`
 
 ## ChatGPT cli
 
-`cargo run --bin chatty` to run cli
+`cargo run --bin gpt-cli` to run cli (it's also the default target for `cargo run`)
 
 non-exhaustive list of features:
 
 * read user config
 * save previous conversations
 * title conversations using generated summary titles
+
+### Installation with cargo
+
+```bash
+cargo install --git https://github.com/dmweis/chatty --no-default-features --bin gpt-cli
+```
