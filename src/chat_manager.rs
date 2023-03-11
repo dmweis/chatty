@@ -15,6 +15,8 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use tiktoken_rs::cl100k_base;
+
 use crate::configuration::get_project_dirs;
 
 pub fn generate_system_instructions() -> HashMap<String, String> {
@@ -67,6 +69,50 @@ impl ChatHistory {
 
     pub fn token_usage(&self) -> Option<Usage> {
         self.token_usage.clone()
+    }
+
+    pub fn count_tokens(&self) -> i64 {
+        // based on this https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
+        // but there some weird hacks because the counts weren't lining up
+
+        // used by gpt-3.5-turbo-0301
+        let bpe = cl100k_base().expect("Failed to load cl100k_base");
+        // Start with -1 because somehow we always had 1 extra token
+        let mut token_count = -1_i64;
+        for message in &self.history {
+            // each message adds 4 tokens
+            // because every message follows <im_start>{role/name}\n{content}<im_end>\n
+            match message.role {
+                Role::User => {
+                    token_count += 4;
+                    if let Some(name) = &message.name {
+                        // example says "if there's a name, the role is omitted"
+                        // but it says "role is always required and always 1 token"
+                        // so I don't know
+                        token_count -= 1;
+                        // add name to count
+                        token_count += bpe.encode_with_special_tokens(name).len() as i64;
+                    }
+                }
+                Role::System => {
+                    token_count += 4;
+                }
+                Role::Assistant => {
+                    // Assistant messages should be primed with <im_start>assistant
+                    // so that'd be 2. But from my testing it looks like there are still 4
+                    token_count += 4;
+                }
+            }
+
+            // add role to count
+            token_count += bpe
+                .encode_with_special_tokens(&message.role.to_string())
+                .len() as i64;
+
+            // add message to count
+            token_count += bpe.encode_with_special_tokens(&message.content).len() as i64;
+        }
+        token_count
     }
 
     /// fun attempt at generating titles for chats
@@ -210,12 +256,19 @@ impl ChatHistory {
 
         term.write_line("\n")?;
 
+        // print usage recorded
         if let Some(token_usage) = self.token_usage.as_ref() {
-            let total_token_usage = token_usage.total_tokens;
             term.write_line(&format!(
-                "\n{total_token_usage}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used"
+                "\nRecorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                token_usage.total_tokens
             ))?;
         }
+
+        // print usage calculated
+        term.write_line(&format!(
+            "Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+            self.count_tokens()
+        ))?;
 
         term.show_cursor()?;
 

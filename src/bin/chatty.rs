@@ -72,11 +72,17 @@ async fn main() -> anyhow::Result<()> {
 
             // print usage
             if let Some(token_usage) = chat_manager.token_usage() {
-                let total_token_usage = token_usage.total_tokens;
                 term.write_line(&format!(
-                    "\n{total_token_usage}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used"
+                    "\nRecorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                    token_usage.total_tokens
                 ))?;
             }
+
+            // print usage calculated
+            term.write_line(&format!(
+                "Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                chat_manager.count_tokens()
+            ))?;
 
             term.write_line("")?;
         } else {

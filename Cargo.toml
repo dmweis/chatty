@@ -37,7 +37,10 @@ tokio = {version = "1.25", features = ["macros", "rt-multi-thread"]}
 anyhow = "1.0"
 thiserror = "1.0"
 
+# openai
 async-openai = {git = "https://github.com/dmweis/async-openai.git", branch = "dmw/make-types-clonable"}
+# this lib is 
+tiktoken-rs = "0.2.1"
 
 clap = {version = "4.1.8", features = ["derive"]}
 config = "0.13.3"
