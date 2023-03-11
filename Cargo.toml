@@ -44,8 +44,8 @@ thiserror = "1.0"
 
 # openai
 async-openai = {git = "https://github.com/dmweis/async-openai.git", branch = "dmw/make-types-clonable"}
-# this lib is 
-tiktoken-rs = "0.2.1"
+# this lib is a bit odd
+tiktoken-rs = {git = "https://github.com/dmweis/tiktoken-rs.git", branch = "optional_python"}
 
 clap = {version = "4.1.8", features = ["derive"]}
 config = "0.13.3"
