@@ -12,6 +12,7 @@ pub const VOICE_TO_TEXT_TRANSCRIBE_MODEL: &str = "whisper-1";
 pub const ROBOT_EMOJI: Emoji = Emoji("🤖", "");
 pub const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "");
 pub const SYSTEM_EMOJI: Emoji = Emoji("ℹ️ ", "");
+pub const INCREASING_TREND_EMOJI: Emoji = Emoji("📈", "");
 
 pub fn now() -> DateTime<Local> {
     Local::now()

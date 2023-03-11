@@ -6,7 +6,10 @@ use chatty::{
     chat_manager,
     cli_history::InMemoryHistory,
     configuration::AppConfig,
-    utils::{generate_system_instructions, CHAT_GPT_MODEL_TOKEN_LIMIT, ROBOT_EMOJI},
+    utils::{
+        generate_system_instructions, CHAT_GPT_MODEL_TOKEN_LIMIT, INCREASING_TREND_EMOJI,
+        ROBOT_EMOJI,
+    },
 };
 use clap::Parser;
 use dialoguer::{console::Term, theme::ColorfulTheme, FuzzySelect, Input};
@@ -142,14 +145,14 @@ async fn main() -> anyhow::Result<()> {
             // print usage
             if let Some(token_usage) = chat_manager.token_usage() {
                 term.write_line(&format!(
-                    "\nRecorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                    "\n{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
                     token_usage.total_tokens
                 ))?;
             }
 
             // print usage calculated
             term.write_line(&format!(
-                "Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                "{INCREASING_TREND_EMOJI} Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
                 chat_manager.count_tokens()
             ))?;
 

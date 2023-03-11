@@ -1,8 +1,8 @@
 use crate::{
     configuration::get_project_dirs,
     utils::{
-        CHAT_GPT_MODEL_NAME, CHAT_GPT_MODEL_TOKEN_LIMIT, QUESTION_MARK_EMOJI, ROBOT_EMOJI,
-        SYSTEM_EMOJI,
+        CHAT_GPT_MODEL_NAME, CHAT_GPT_MODEL_TOKEN_LIMIT, INCREASING_TREND_EMOJI,
+        QUESTION_MARK_EMOJI, ROBOT_EMOJI, SYSTEM_EMOJI,
     },
 };
 use anyhow::{Context, Result};
@@ -223,7 +223,6 @@ impl ChatHistory {
         while let Some(result) = stream.next().await {
             let response = result?;
             if let Some(new_usage) = response.usage {
-                println!("Usage supplied {:?}", new_usage);
                 self.token_usage = Some(new_usage);
             }
 
@@ -261,14 +260,14 @@ impl ChatHistory {
         // print usage recorded
         if let Some(token_usage) = self.token_usage.as_ref() {
             term.write_line(&format!(
-                "Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                "{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
                 token_usage.total_tokens
             ))?;
         }
 
         // print usage calculated
         term.write_line(&format!(
-            "Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+            "{INCREASING_TREND_EMOJI} Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
             self.count_tokens()
         ))?;
 
@@ -308,14 +307,14 @@ impl ChatHistory {
         // print usage recorded
         if let Some(token_usage) = self.token_usage.as_ref() {
             term.write_line(&format!(
-                "Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                "{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
                 token_usage.total_tokens
             ))?;
         }
 
         // print usage calculated
         term.write_line(&format!(
-            "Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+            "{INCREASING_TREND_EMOJI} Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
             self.count_tokens()
         ))?;
         term.write_line("---------------------------------")?;
