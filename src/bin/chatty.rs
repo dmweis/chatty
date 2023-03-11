@@ -2,7 +2,7 @@ use async_openai::Client;
 use chatty::{
     chat_manager::{self, generate_system_instructions},
     configuration::AppConfig,
-    utils::{QUESTION_MARK_EMOJI, ROBOT_EMOJI},
+    utils::{CHAT_GPT_MODEL_TOKEN_LIMIT, QUESTION_MARK_EMOJI, ROBOT_EMOJI},
 };
 use clap::Parser;
 use dialoguer::console::Term;
@@ -67,7 +67,17 @@ async fn main() -> anyhow::Result<()> {
 
         if cli.disable_streaming {
             let response = chat_manager.next_message(&user_question, &client).await?;
+
             term.write_line(&response)?;
+
+            // print usage
+            if let Some(token_usage) = chat_manager.token_usage() {
+                let total_token_usage = token_usage.total_tokens;
+                term.write_line(&format!(
+                    "\n{total_token_usage}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used"
+                ))?;
+            }
+
             term.write_line("")?;
         } else {
             let _response = chat_manager

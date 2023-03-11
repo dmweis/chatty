@@ -4,6 +4,8 @@ use std::io::BufRead;
 
 pub const CHAT_GPT_MODEL_NAME: &str = "gpt-3.5-turbo";
 pub const CHAT_GPT_KNOWLEDGE_CUTOFF: &str = "September 2021";
+pub const CHAT_GPT_MODEL_TOKEN_LIMIT: u32 = 4096;
+
 pub const VOICE_TO_TEXT_TRANSCRIBE_MODEL: &str = "whisper-1";
 
 // Emojis

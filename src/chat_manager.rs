@@ -1,9 +1,11 @@
-use crate::utils::{now_rfc3339, CHAT_GPT_KNOWLEDGE_CUTOFF, CHAT_GPT_MODEL_NAME};
+use crate::utils::{
+    now_rfc3339, CHAT_GPT_KNOWLEDGE_CUTOFF, CHAT_GPT_MODEL_NAME, CHAT_GPT_MODEL_TOKEN_LIMIT,
+};
 use anyhow::{Context, Result};
 use async_openai::{
     types::{
         ChatCompletionRequestMessage, ChatCompletionRequestMessageArgs,
-        CreateChatCompletionRequestArgs, Role,
+        CreateChatCompletionRequestArgs, Role, Usage,
     },
     Client,
 };
@@ -43,6 +45,7 @@ Knowledge cutoff year {} Current date and time: {}",
 
 pub struct ChatHistory {
     history: Vec<ChatCompletionRequestMessage>,
+    token_usage: Option<Usage>,
     conversation_start: Option<DateTime<Local>>,
     conversation_title: Option<String>,
 }
@@ -56,9 +59,14 @@ impl ChatHistory {
         let dt: DateTime<Local> = Local::now();
         Ok(Self {
             history,
+            token_usage: None,
             conversation_start: Some(dt),
             conversation_title: None,
         })
+    }
+
+    pub fn token_usage(&self) -> Option<Usage> {
+        self.token_usage.clone()
     }
 
     /// fun attempt at generating titles for chats
@@ -101,6 +109,8 @@ impl ChatHistory {
             .role(role)
             .build()?;
         self.history.push(message);
+        // invalidate since we don't know?
+        self.token_usage = None;
         Ok(())
     }
 
@@ -129,6 +139,7 @@ impl ChatHistory {
             .build()?;
 
         self.history.push(added_response);
+        self.token_usage = response.usage;
 
         self.populate_title_if_empty(client).await?;
 
@@ -163,6 +174,11 @@ impl ChatHistory {
         // For reasons not documented in OpenAI docs / OpenAPI spec, the response of streaming call is different and doesn't include all the same fields.
         while let Some(result) = stream.next().await {
             let response = result?;
+            if let Some(new_usage) = response.usage {
+                println!("Usage supplied {:?}", new_usage);
+                self.token_usage = Some(new_usage);
+            }
+
             // this ignores if there are multiple choices on the answer
             let delta = &response
                 .choices
@@ -191,7 +207,15 @@ impl ChatHistory {
         // term.write_line(&format!("{}", markdown))?;
 
         // empty new line after stream is done
+
         term.write_line("\n")?;
+
+        if let Some(token_usage) = self.token_usage.as_ref() {
+            let total_token_usage = token_usage.total_tokens;
+            term.write_line(&format!(
+                "\n{total_token_usage}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used"
+            ))?;
+        }
 
         term.show_cursor()?;
 
