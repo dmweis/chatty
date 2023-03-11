@@ -1,10 +1,13 @@
 use anyhow::Context;
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
 use chatty::{
-    chat_manager::{self, generate_system_instructions},
+    chat_manager,
     configuration::AppConfig,
     mqtt::start_mqtt_service,
-    utils::{QUESTION_MARK_EMOJI, ROBOT_EMOJI, VOICE_TO_TEXT_TRANSCRIBE_MODEL},
+    utils::{
+        generate_system_instructions, QUESTION_MARK_EMOJI, ROBOT_EMOJI,
+        VOICE_TO_TEXT_TRANSCRIBE_MODEL,
+    },
 };
 use clap::Parser;
 use dialoguer::console::Term;

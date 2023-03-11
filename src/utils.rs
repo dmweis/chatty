@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 use dialoguer::console::Emoji;
-use std::io::BufRead;
+use std::{collections::HashMap, io::BufRead};
 
 pub const CHAT_GPT_MODEL_NAME: &str = "gpt-3.5-turbo";
 pub const CHAT_GPT_KNOWLEDGE_CUTOFF: &str = "September 2021";
@@ -9,8 +9,9 @@ pub const CHAT_GPT_MODEL_TOKEN_LIMIT: u32 = 4096;
 pub const VOICE_TO_TEXT_TRANSCRIBE_MODEL: &str = "whisper-1";
 
 // Emojis
-pub const ROBOT_EMOJI: Emoji = Emoji("🤖", "ChatGPT");
-pub const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "User");
+pub const ROBOT_EMOJI: Emoji = Emoji("🤖", "");
+pub const QUESTION_MARK_EMOJI: Emoji = Emoji("❓", "");
+pub const SYSTEM_EMOJI: Emoji = Emoji("ℹ️ ", "");
 
 pub fn now() -> DateTime<Local> {
     Local::now()
@@ -26,4 +27,32 @@ pub fn wait_for_enter(message: &str) -> anyhow::Result<()> {
     println!("{}", message);
     std::io::stdin().lock().read_line(&mut String::new())?;
     Ok(())
+}
+
+pub const DEFAULT_SYSTEM_INSTRUCTIONS_KEY: &str = "default";
+
+pub fn generate_system_instructions() -> HashMap<&'static str, String> {
+    let mut instructions = HashMap::new();
+
+    let current_time_str = now_rfc3339();
+
+    instructions.insert(
+        DEFAULT_SYSTEM_INSTRUCTIONS_KEY,
+        format!(
+            "You are ChatGPT, a large language model trained by OpenAI. 
+Answer as concisely as possible. Knowledge cutoff year {} Current date and time: {}",
+            CHAT_GPT_KNOWLEDGE_CUTOFF, current_time_str
+        ),
+    );
+
+    instructions.insert(
+        "joi",
+        format!(
+            "You are Joi. The cheerful and helpful AI assistant. 
+Knowledge cutoff year {} Current date and time: {}",
+            CHAT_GPT_KNOWLEDGE_CUTOFF, current_time_str
+        ),
+    );
+
+    instructions
 }

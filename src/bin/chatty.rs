@@ -1,11 +1,14 @@
+use std::path::PathBuf;
+
 use async_openai::Client;
 use chatty::{
-    chat_manager::{self, generate_system_instructions},
+    chat_manager,
+    cli_history::InMemoryHistory,
     configuration::AppConfig,
-    utils::{CHAT_GPT_MODEL_TOKEN_LIMIT, QUESTION_MARK_EMOJI, ROBOT_EMOJI},
+    utils::{generate_system_instructions, CHAT_GPT_MODEL_TOKEN_LIMIT, ROBOT_EMOJI},
 };
 use clap::Parser;
-use dialoguer::console::Term;
+use dialoguer::{console::Term, theme::ColorfulTheme, FuzzySelect, Input};
 
 #[derive(Parser)]
 #[command()]
@@ -13,6 +16,9 @@ struct Cli {
     /// disable streaming
     #[arg(long)]
     disable_streaming: bool,
+    /// load from file
+    #[arg(long)]
+    file: Option<PathBuf>,
     /// do not save conversation
     #[arg(long)]
     no_save: bool,
@@ -29,17 +35,14 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if cli.create_config {
-        // this is a meh way to do this
-        let config_new = AppConfig {
-            open_ai_api_key: String::from("EMPTY_TOKEN"),
-            mqtt: None,
-        };
+        // write default config
+        let config_new = AppConfig::default();
         config_new.save_user_config()?;
         return Ok(());
     }
 
     if cli.copy_local_config {
-        // this is a meh way to do this
+        // copy dev config if it exists
         let local_config = AppConfig::load_dev_config()?;
         let config_new = AppConfig {
             open_ai_api_key: local_config.open_ai_api_key,
@@ -55,13 +58,50 @@ async fn main() -> anyhow::Result<()> {
 
     let system_messages = generate_system_instructions();
 
-    let mut chat_manager = chat_manager::ChatHistory::new(&system_messages["joi"])?;
+    let mut chat_manager = if let Some(path) = cli.file {
+        chat_manager::ChatHistory::load_from_file(&path)?
+    } else {
+        chat_manager::ChatHistory::new(&system_messages["joi"])?
+    };
 
     let term = Term::stdout();
+    let mut history = InMemoryHistory::default();
+    let term_theme = ColorfulTheme::default();
 
     loop {
-        term.write_line(&format!("{QUESTION_MARK_EMOJI} Question:\n"))?;
-        let user_question = term.read_line()?;
+        let mut user_question: String = Input::with_theme(&term_theme)
+            .with_prompt("Question:")
+            .history_with(&mut history)
+            .interact_text_on(&term)?;
+
+        if &user_question == "/?" {
+            let options = UserActions::all_str();
+
+            let selection = FuzzySelect::with_theme(&term_theme)
+                .with_prompt("Select action")
+                .items(&options)
+                .default(0)
+                .interact_on_opt(&term)?;
+            let selection = selection.and_then(|index| UserActions::all().get(index));
+            match selection {
+                Some(UserActions::ReturnToChat) => continue,
+                Some(UserActions::RecreateTitle) => {
+                    chat_manager.populate_title(&client).await?;
+                    continue;
+                }
+                Some(UserActions::RegenerateResponse) => {
+                    // ugly...
+                    _ = chat_manager.pop_last_message();
+                    user_question = chat_manager.pop_last_message().unwrap_or_default().content;
+                    // keep going to create new message
+                }
+                Some(UserActions::PrintChatHistory) => {
+                    chat_manager.print_history(&term)?;
+                    continue;
+                }
+                None => continue,
+            }
+        }
 
         term.write_line(&format!("\n{ROBOT_EMOJI} ChatGPT:\n"))?;
 
@@ -93,5 +133,37 @@ async fn main() -> anyhow::Result<()> {
         if !cli.no_save {
             chat_manager.save_to_file()?;
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum UserActions {
+    ReturnToChat,
+    RecreateTitle,
+    RegenerateResponse,
+    PrintChatHistory,
+}
+
+impl UserActions {
+    fn as_str(&self) -> &'static str {
+        match self {
+            UserActions::ReturnToChat => "Return to chat",
+            UserActions::RecreateTitle => "Recreate title",
+            UserActions::RegenerateResponse => "Regenerate response",
+            UserActions::PrintChatHistory => "Print chat history",
+        }
+    }
+
+    fn all() -> &'static [UserActions] {
+        &[
+            UserActions::ReturnToChat,
+            UserActions::RecreateTitle,
+            UserActions::RegenerateResponse,
+            UserActions::PrintChatHistory,
+        ]
+    }
+
+    fn all_str() -> Vec<&'static str> {
+        Self::all().iter().map(|opt| opt.as_str()).collect()
     }
 }

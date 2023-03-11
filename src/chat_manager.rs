@@ -1,5 +1,9 @@
-use crate::utils::{
-    now_rfc3339, CHAT_GPT_KNOWLEDGE_CUTOFF, CHAT_GPT_MODEL_NAME, CHAT_GPT_MODEL_TOKEN_LIMIT,
+use crate::{
+    configuration::get_project_dirs,
+    utils::{
+        CHAT_GPT_MODEL_NAME, CHAT_GPT_MODEL_TOKEN_LIMIT, QUESTION_MARK_EMOJI, ROBOT_EMOJI,
+        SYSTEM_EMOJI,
+    },
 };
 use anyhow::{Context, Result};
 use async_openai::{
@@ -13,38 +17,10 @@ use chrono::prelude::{DateTime, Local};
 use dialoguer::console::Term;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
+use std::path::Path;
 use tiktoken_rs::cl100k_base;
 
-use crate::configuration::get_project_dirs;
-
-pub fn generate_system_instructions() -> HashMap<String, String> {
-    let mut table = HashMap::new();
-
-    let current_time_str = now_rfc3339();
-
-    table.insert(
-        String::from("default"),
-        format!(
-            "You are ChatGPT, a large language model trained by OpenAI. 
-Answer as concisely as possible. Knowledge cutoff year {} Current date and time: {}",
-            CHAT_GPT_KNOWLEDGE_CUTOFF, current_time_str
-        ),
-    );
-
-    table.insert(
-        String::from("joi"),
-        format!(
-            "You are Joi. The cheerful and helpful AI assistant. 
-Knowledge cutoff year {} Current date and time: {}",
-            CHAT_GPT_KNOWLEDGE_CUTOFF, current_time_str
-        ),
-    );
-
-    table
-}
-
+/// Manager for conversations
 pub struct ChatHistory {
     history: Vec<ChatCompletionRequestMessage>,
     token_usage: Option<Usage>,
@@ -67,10 +43,16 @@ impl ChatHistory {
         })
     }
 
+    /// Get Usage as reported by the API
+    ///
+    /// Usage is not reported in streaming mode for some reason
     pub fn token_usage(&self) -> Option<Usage> {
         self.token_usage.clone()
     }
 
+    /// Use local tokenizer library to estimate token usage
+    ///
+    /// This can be imprecise if we have different tokenization rules than the model
     pub fn count_tokens(&self) -> i64 {
         // based on this https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
         // but there some weird hacks because the counts weren't lining up
@@ -119,30 +101,46 @@ impl ChatHistory {
     /// would be great if this could be async
     async fn populate_title_if_empty(&mut self, client: &Client) -> Result<()> {
         if self.conversation_title.is_none() {
-            let mut history_copy = self.history.clone();
+            self.populate_title(client).await?;
+        }
+        Ok(())
+    }
 
-            let message =
+    /// create a new title for the chat using special ChatGPT query
+    pub async fn populate_title(&mut self, client: &Client) -> Result<()> {
+        let mut history_copy = self.history.clone();
+        let message =
                 "How would you title this conversation up until before this message? Answer in all lowercase with underscores 
 \"_\" between words so that it can be used as a file name. Be concise.";
 
-            let user_message = ChatCompletionRequestMessageArgs::default()
-                .content(message)
-                .role(Role::User)
-                .build()?;
+        let user_message = ChatCompletionRequestMessageArgs::default()
+            .content(message)
+            .role(Role::User)
+            .build()?;
 
-            history_copy.push(user_message);
+        history_copy.push(user_message);
 
-            let request = CreateChatCompletionRequestArgs::default()
-                .model(CHAT_GPT_MODEL_NAME)
-                .messages(history_copy)
-                .build()?;
+        let request = CreateChatCompletionRequestArgs::default()
+            .model(CHAT_GPT_MODEL_NAME)
+            .messages(history_copy)
+            .build()?;
 
-            let response = client.chat().create(request).await?;
+        let response = client.chat().create(request).await?;
 
-            let title = response.choices[0].message.content.trim().to_owned();
-            self.conversation_title = Some(title);
-        }
+        let title = response.choices[0].message.content.trim().to_owned();
+        self.conversation_title = Some(title);
         Ok(())
+    }
+
+    /// pop and return the last message in history
+    pub fn pop_last_message(&mut self) -> Option<ChatCompletionRequestMessage> {
+        self.history.pop()
+    }
+
+    /// Get clone of last message in history
+    /// Does *NOT* remove the message from history
+    pub fn peek_last_message(&mut self) -> Option<ChatCompletionRequestMessage> {
+        self.history.last().cloned()
     }
 
     /// Insert message to history
@@ -160,6 +158,7 @@ impl ChatHistory {
         Ok(())
     }
 
+    /// generate next message
     pub async fn next_message(
         &mut self,
         user_message: &str,
@@ -192,12 +191,15 @@ impl ChatHistory {
         Ok(response.choices[0].message.content.clone())
     }
 
+    /// stream next message to terminal
     pub async fn next_message_stream_stdout(
         &mut self,
         user_message: &str,
         client: &Client,
         term: &Term,
     ) -> anyhow::Result<String> {
+        // this probably shouldn't leak abstraction to terminal
+        // but until I have a use case where the abstriction helps this is okay....ish
         let user_message = ChatCompletionRequestMessageArgs::default()
             .content(user_message)
             .role(Role::User)
@@ -288,7 +290,26 @@ impl ChatHistory {
         Ok(response_content_buffer)
     }
 
+    /// print history of chat to terminal
+    pub fn print_history(&self, term: &Term) -> Result<()> {
+        // this should probably not live here
+        term.write_line("---------------------------------")?;
+        term.write_line("Conversation so far:")?;
+        for message in &self.history {
+            match message.role {
+                Role::System => term.write_line(&format!("{SYSTEM_EMOJI} System:\n"))?,
+                Role::Assistant => term.write_line(&format!("{ROBOT_EMOJI} ChatGPT:\n"))?,
+                Role::User => term.write_line(&format!("{QUESTION_MARK_EMOJI} User:\n"))?,
+            }
+            term.write_line(&message.content)?;
+        }
+        term.write_line("---------------------------------")?;
+        Ok(())
+    }
+
+    /// save chat history file
     pub fn save_to_file(&self) -> Result<()> {
+        // TODO(David): Extract this outside
         let project_dirs = get_project_dirs()?;
         let cache_dir = project_dirs.cache_dir();
 
@@ -317,6 +338,23 @@ impl ChatHistory {
         let file = std::fs::File::create(file_path)?;
         serde_yaml::to_writer(file, &history_storage)?;
         Ok(())
+    }
+
+    /// load from chat history file
+    pub fn load_from_file(file_path: &Path) -> anyhow::Result<ChatHistory> {
+        let file = std::fs::File::open(file_path)?;
+        let chat_history: ChatHistoryStorage = serde_yaml::from_reader(file)?;
+        let converted_history_list: Vec<ChatCompletionRequestMessage> = chat_history
+            .messages
+            .into_iter()
+            .map(|message| message.into())
+            .collect();
+        Ok(ChatHistory {
+            history: converted_history_list,
+            token_usage: None,
+            conversation_start: None,
+            conversation_title: None,
+        })
     }
 }
 
@@ -347,7 +385,7 @@ struct ChatHistoryStorage {
     pub messages: Vec<ChatHistoryElement>,
 }
 
-/// used for storage
+/// Used for storage because [ChatCompletionRequestMessage] is not fully serde'd
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct ChatHistoryElement {
     /// The role of the author of this message.

@@ -34,6 +34,17 @@ pub struct AppConfig {
     pub mqtt: Option<MqttConfig>,
 }
 
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            open_ai_api_key: String::from(
+                "Get token from https://platform.openai.com/account/api-keys",
+            ),
+            mqtt: None,
+        }
+    }
+}
+
 impl AppConfig {
     pub fn load_dev_config() -> anyhow::Result<Self> {
         let settings = Config::builder()

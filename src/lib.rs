@@ -7,4 +7,5 @@ pub mod configuration;
 pub mod mqtt;
 
 pub mod chat_manager;
+pub mod cli_history;
 pub mod utils;

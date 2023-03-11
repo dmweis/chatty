@@ -1,5 +1,6 @@
 [package]
 authors = ["David Michael Weis <dweis7@gmail.com>"]
+default-run = "chatty"
 description = "OpenAI playground"
 edition = "2021"
 license = "MIT OR APACHE"
@@ -67,6 +68,6 @@ rumqttc = {version = "0.20.0", optional = true}
 
 # terminal stuff
 chrono = "0.4"
-dialoguer = "0.10.3"
+dialoguer = {version = "0.10.3", features = ["history", "fuzzy-select"]}
 directories = "4.0"
 termimad = "0.22"
