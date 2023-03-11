@@ -18,6 +18,10 @@ name = "smart_home_experiment"
 required-features = ["audio"]
 
 [[bin]]
+name = "smart_home_experiment_v2"
+required-features = ["audio"]
+
+[[bin]]
 name = "audio_to_mqtt"
 required-features = ["audio"]
 
