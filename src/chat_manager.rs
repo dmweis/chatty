@@ -17,7 +17,7 @@ use chrono::prelude::{DateTime, Local};
 use dialoguer::console::Term;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tiktoken_rs::cl100k_base;
 
 /// Manager for conversations
@@ -261,7 +261,7 @@ impl ChatHistory {
         // print usage recorded
         if let Some(token_usage) = self.token_usage.as_ref() {
             term.write_line(&format!(
-                "\nRecorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                "Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
                 token_usage.total_tokens
             ))?;
         }
@@ -303,6 +303,21 @@ impl ChatHistory {
             }
             term.write_line(&message.content)?;
         }
+
+        term.write_line("")?;
+        // print usage recorded
+        if let Some(token_usage) = self.token_usage.as_ref() {
+            term.write_line(&format!(
+                "Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                token_usage.total_tokens
+            ))?;
+        }
+
+        // print usage calculated
+        term.write_line(&format!(
+            "Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+            self.count_tokens()
+        ))?;
         term.write_line("---------------------------------")?;
         Ok(())
     }
@@ -338,6 +353,22 @@ impl ChatHistory {
         let file = std::fs::File::create(file_path)?;
         serde_yaml::to_writer(file, &history_storage)?;
         Ok(())
+    }
+
+    pub fn get_all_saved_conversations() -> Result<Vec<PathBuf>> {
+        let project_dirs = get_project_dirs()?;
+        let cache_dir = project_dirs.cache_dir();
+
+        let mut files = vec![];
+
+        for entry in std::fs::read_dir(cache_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                files.push(path);
+            }
+        }
+        Ok(files)
     }
 
     /// load from chat history file

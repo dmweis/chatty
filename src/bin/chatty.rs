@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Context;
 use async_openai::Client;
 use chatty::{
     chat_manager,
@@ -19,6 +20,9 @@ struct Cli {
     /// load from file
     #[arg(long)]
     file: Option<PathBuf>,
+    /// list files
+    #[arg(long)]
+    select_file: bool,
     /// do not save conversation
     #[arg(long)]
     no_save: bool,
@@ -32,7 +36,7 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
 
     if cli.create_config {
         // write default config
@@ -52,6 +56,35 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let term = Term::stdout();
+    let mut history = InMemoryHistory::default();
+    let term_theme = ColorfulTheme::default();
+
+    if cli.select_file {
+        let files = chat_manager::ChatHistory::get_all_saved_conversations()?;
+        let file_names: Vec<_> = files
+            .iter()
+            .map(|path| {
+                path.file_name()
+                    .unwrap_or_default()
+                    .to_str()
+                    .unwrap_or_default()
+            })
+            .collect();
+        let selection = FuzzySelect::with_theme(&term_theme)
+            .with_prompt("Select file")
+            .items(&file_names)
+            .default(0)
+            .interact_on(&term)?;
+        cli.file = Some(
+            files
+                .get(selection)
+                .context("Selected wrong item form file list")?
+                .to_owned(),
+        );
+        // weird mutating the cli args
+    }
+
     let config = AppConfig::load_user_config()?;
 
     let client = Client::new().with_api_key(&config.open_ai_api_key);
@@ -63,10 +96,6 @@ async fn main() -> anyhow::Result<()> {
     } else {
         chat_manager::ChatHistory::new(&system_messages["joi"])?
     };
-
-    let term = Term::stdout();
-    let mut history = InMemoryHistory::default();
-    let term_theme = ColorfulTheme::default();
 
     loop {
         let mut user_question: String = Input::with_theme(&term_theme)
