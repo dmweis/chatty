@@ -11,10 +11,7 @@ use dialoguer::console::{style, Term};
 use rumqttc::{Publish, QoS};
 use schemars::{schema_for, JsonSchema};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    io::BufRead,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::Receiver;
 
 const SMART_HOME_MQTT_TOPIC: &str = "chatty/home_state/simple/v2";
@@ -193,14 +190,9 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
             chat_manager.save_to_file()?;
         }
 
-        wait_for_enter()?;
+        term.write_line("Press enter for next question")?;
+        term.read_line()?;
     }
-}
-
-fn wait_for_enter() -> anyhow::Result<()> {
-    println!("Press enter to continue recording");
-    std::io::stdin().lock().read_line(&mut String::new())?;
-    Ok(())
 }
 
 async fn wait_for_first_mqtt_message<T>(
