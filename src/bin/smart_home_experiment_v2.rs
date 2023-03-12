@@ -142,35 +142,24 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                 .await?
         };
 
-        let json_range = response
-            .find('{')
-            .and_then(|start| response.rfind('}').map(|end| (start, end + 1)));
+        match extract_json(&response) {
+            Ok(Some(message)) => {
+                smart_home_state = message;
+                term.write_line(&format!("{}", style(smart_home_state.to_json()?).green()))?;
 
-        if let Some((json_start, json_end)) = json_range {
-            if let Some(json) = response.get(json_start..json_end) {
-                match SmartHomeState::from_json(json) {
-                    Ok(parsed_state) => {
-                        smart_home_state = parsed_state;
-                        term.write_line(&format!(
-                            "{}",
-                            style(smart_home_state.to_json()?).green()
-                        ))?;
-
-                        mqtt_client
-                            .publish(
-                                SMART_HOME_MQTT_TOPIC,
-                                QoS::AtMostOnce,
-                                true,
-                                smart_home_state.to_json()?,
-                            )
-                            .await?;
-                    }
-                    Err(error) => {
-                        // you could try again by showing ChatGPT the error :D
-                        term.write_line(&format!("Failed to parse json {:?}", error))?;
-                    }
-                }
+                mqtt_client
+                    .publish(
+                        SMART_HOME_MQTT_TOPIC,
+                        QoS::AtMostOnce,
+                        true,
+                        smart_home_state.to_json()?,
+                    )
+                    .await?;
             }
+            Err(error) => {
+                term.write_line(&format!("Failed to parse json {:?}", error))?;
+            }
+            _ => (),
         }
 
         let user_message_start = response.find("MESSAGE:");
@@ -225,6 +214,25 @@ where
             return Ok(Default::default());
         }
     }
+}
+
+fn extract_json(message: &str) -> anyhow::Result<Option<SmartHomeState>> {
+    let json_range = message
+        .find('{')
+        .and_then(|start| message.rfind('}').map(|end| (start, end + 1)));
+
+    if let Some((json_start, json_end)) = json_range {
+        if let Some(json) = message.get(json_start..json_end) {
+            match SmartHomeState::from_json(json) {
+                Ok(parsed_state) => return Ok(Some(parsed_state)),
+                Err(error) => {
+                    // you could try again by showing ChatGPT the error :D
+                    return Err(anyhow::anyhow!("Failed to parse json {:?}", error));
+                }
+            }
+        }
+    }
+    Ok(None)
 }
 
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, Default)]
