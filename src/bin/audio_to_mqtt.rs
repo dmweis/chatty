@@ -48,7 +48,7 @@ use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 
 fn create_message(data: &[u8]) -> String {
-    let base64_wav_file: String = general_purpose::STANDARD_NO_PAD.encode(data);
+    let base64_wav_file: String = general_purpose::STANDARD.encode(data);
     let data = json!({
         "data": base64_wav_file,
         "format": "wav"
