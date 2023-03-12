@@ -151,7 +151,10 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                 match SmartHomeState::from_json(json) {
                     Ok(parsed_state) => {
                         smart_home_state = parsed_state;
-                        term.write_line(&format!("{}", style(smart_home_state.to_json()?).red()))?;
+                        term.write_line(&format!(
+                            "{}",
+                            style(smart_home_state.to_json()?).green()
+                        ))?;
 
                         mqtt_client
                             .publish(
