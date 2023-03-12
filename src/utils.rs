@@ -1,6 +1,10 @@
+use anyhow::Context;
 use chrono::{DateTime, Local};
 use dialoguer::console::Emoji;
 use std::{collections::HashMap, io::BufRead};
+use tracing::dispatcher::{self, Dispatch};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, Registry};
 
 pub const CHAT_GPT_MODEL_NAME: &str = "gpt-3.5-turbo";
 pub const CHAT_GPT_KNOWLEDGE_CUTOFF: &str = "September 2021";
@@ -56,4 +60,17 @@ Knowledge cutoff year {} Current date and time: {}",
     );
 
     instructions
+}
+
+pub fn setup_tracing() -> anyhow::Result<()> {
+    let filter = EnvFilter::builder()
+        .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+        .parse("")?;
+
+    let subscriber = Registry::default()
+        .with(filter)
+        .with(tracing_logfmt::layer());
+    dispatcher::set_global_default(Dispatch::new(subscriber))
+        .context("Global logger has already been set!")?;
+    Ok(())
 }
