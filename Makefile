@@ -16,7 +16,7 @@ build-chatty-smart-home:
 	cargo deb --no-build
 
 .PHONE: install-chatty-smart-home
-install-chatty-smart-home: build
+install-chatty-smart-home: build-chatty-smart-home
 	sudo dpkg -i $(DEB_BUILD_PATH)
 
 .PHONY: install-dependencies-chatty-smart-home
