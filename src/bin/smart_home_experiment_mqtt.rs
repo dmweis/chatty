@@ -108,6 +108,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                 smart_home_state = SmartHomeState::from_json_slice(&message.payload)?;
             }
             SMART_HOME_RESET_CHAT_MANAGER_COMMAND => {
+                term.write_line("Resetting chat manager")?;
                 chat_manager = chat_manager::ChatHistory::new(&system_messages)?;
             }
             SMART_HOME_VOICE_COMMAND => {
