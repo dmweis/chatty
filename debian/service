@@ -10,7 +10,7 @@ StateDirectory=chatty_smart_home
 Type=simple
 Restart=on-failure
 RestartSec=5s
-ExecStart=/usr/bin/chatty_smart_home --config /etc/chatty_smart_home/settings
+ExecStart=/usr/bin/chatty_smart_home --config /etc/chatty_smart_home/settings --no-save
 
 [Install]
 WantedBy=default.target
