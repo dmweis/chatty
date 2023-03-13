@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use config::Config;
@@ -63,6 +63,13 @@ impl AppConfig {
             .add_source(config::Environment::with_prefix("CHATTY"))
             .build()?;
 
+        Ok(settings.try_deserialize::<AppConfig>()?)
+    }
+
+    pub fn load_config(path: &Path) -> anyhow::Result<Self> {
+        let settings = Config::builder()
+            .add_source(config::File::from(path))
+            .build()?;
         Ok(settings.try_deserialize::<AppConfig>()?)
     }
 

@@ -8,7 +8,27 @@ name = "chatty"
 publish = false
 readme = "README.md"
 repository = "https://github.com/dmweis/chatty"
-version = "0.1.0"
+version = "0.1.1"
+
+[package.metadata.deb]
+assets = [
+  [
+    "target/release/chatty_smart_home",
+    "/usr/bin/",
+    "755",
+  ],
+  [
+    "configuration/settings.yaml",
+    "/etc/chatty_smart_home/settings.yaml",
+    "644",
+  ],
+]
+conf-files = ["/etc/chatty_smart_home/settings.yaml"]
+maintainer = "David Weis <dweis7@gmail.com>"
+maintainer-scripts = "debian/"
+name = "chatty_smart_home"
+
+[package.metadata.deb.systemd-units]
 
 [[bin]]
 name = "audio_chat"

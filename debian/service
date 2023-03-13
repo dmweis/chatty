@@ -1,0 +1,16 @@
+[Unit]
+Description=ChatGPT smart home server
+After=network-online.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+User=chatty_smart_home
+DynamicUser=yes
+StateDirectory=chatty_smart_home
+Type=simple
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/bin/chatty_smart_home --config /etc/chatty_smart_home/settings
+
+[Install]
+WantedBy=default.target

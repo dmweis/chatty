@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Context;
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
 use base64::{engine::general_purpose, Engine};
@@ -21,6 +23,9 @@ const SMART_HOME_RESET_CHAT_MANAGER_COMMAND: &str = "chatty/audio_command/reset_
 #[derive(Parser, Debug)]
 #[command()]
 struct Cli {
+    /// config path
+    #[arg(long)]
+    config: Option<PathBuf>,
     /// disable streaming
     #[arg(long)]
     disable_streaming: bool,
@@ -66,7 +71,11 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let config = AppConfig::load_user_config()?;
+    let config = if let Some(config_path) = &cli.config {
+        AppConfig::load_config(config_path)?
+    } else {
+        AppConfig::load_user_config()?
+    };
 
     let client = Client::new().with_api_key(&config.open_ai_api_key);
 
