@@ -8,7 +8,7 @@ name = "chatty"
 publish = false
 readme = "README.md"
 repository = "https://github.com/dmweis/chatty"
-version = "0.1.3"
+version = "0.1.4"
 
 [package.metadata.deb]
 assets = [

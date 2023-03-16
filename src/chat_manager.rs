@@ -266,19 +266,29 @@ impl ChatHistory {
 
         term.write_line("\n")?;
 
+        if let Some(chat_streamer) = chat_streamer.borrow_mut() {
+            chat_streamer.push_message("\n\n").await?;
+        }
+
         // print usage recorded
         if let Some(token_usage) = self.token_usage.as_ref() {
-            term.write_line(&format!(
-                "{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
-                token_usage.total_tokens
-            ))?;
+            let msg = format!("{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",token_usage.total_tokens);
+            term.write_line(&msg)?;
+
+            if let Some(chat_streamer) = chat_streamer.borrow_mut() {
+                chat_streamer.push_message(&msg).await?;
+            }
         }
 
         // print usage calculated
-        term.write_line(&format!(
+        let usage_msg = format!(
             "{INCREASING_TREND_EMOJI} Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
             self.count_tokens()
-        ))?;
+        );
+        term.write_line(&usage_msg)?;
+        if let Some(chat_streamer) = chat_streamer.borrow_mut() {
+            chat_streamer.push_message(&usage_msg).await?;
+        }
 
         term.show_cursor()?;
 
@@ -316,14 +326,14 @@ impl ChatHistory {
         // print usage recorded
         if let Some(token_usage) = self.token_usage.as_ref() {
             term.write_line(&format!(
-                "{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+                "{INCREASING_TREND_EMOJI} Recorded usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens",
                 token_usage.total_tokens
             ))?;
         }
 
         // print usage calculated
         term.write_line(&format!(
-            "{INCREASING_TREND_EMOJI} Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens used",
+            "{INCREASING_TREND_EMOJI} Estimated usage {}/{CHAT_GPT_MODEL_TOKEN_LIMIT} tokens",
             self.count_tokens()
         ))?;
         term.write_line("---------------------------------")?;
