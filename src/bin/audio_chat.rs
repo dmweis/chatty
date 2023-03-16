@@ -98,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
             response
         } else {
             chat_manager
-                .next_message_stream_stdout(&user_question, &client, &term)
+                .next_message_stream_stdout(&user_question, &client, &term, None)
                 .await?
         };
 

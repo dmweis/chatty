@@ -159,7 +159,7 @@ async fn main() -> anyhow::Result<()> {
             term.write_line("")?;
         } else {
             let _response = chat_manager
-                .next_message_stream_stdout(&user_question, &client, &term)
+                .next_message_stream_stdout(&user_question, &client, &term, None)
                 .await?;
         }
         if !cli.no_save {

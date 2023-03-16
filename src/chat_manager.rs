@@ -13,11 +13,16 @@ use async_openai::{
     },
     Client,
 };
+use async_trait::async_trait;
 use chrono::prelude::{DateTime, Local};
 use dialoguer::console::Term;
 use futures::StreamExt;
+use rumqttc::AsyncClient;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::BorrowMut,
+    path::{Path, PathBuf},
+};
 use tiktoken_rs::cl100k_base;
 
 /// Manager for conversations
@@ -197,6 +202,7 @@ impl ChatHistory {
         user_message: &str,
         client: &Client,
         term: &Term,
+        mut chat_streamer: Option<&mut dyn ChatStreamDisplay>,
     ) -> anyhow::Result<String> {
         // this probably shouldn't leak abstraction to terminal
         // but until I have a use case where the abstriction helps this is okay....ish
@@ -241,6 +247,9 @@ impl ChatHistory {
             if let Some(delta_content) = &delta.content {
                 response_content_buffer.push_str(delta_content);
                 term.write_str(delta_content)?;
+                if let Some(chat_streamer) = chat_streamer.borrow_mut() {
+                    chat_streamer.push_message(delta_content).await?;
+                }
             }
         }
 
@@ -425,4 +434,41 @@ struct ChatHistoryElement {
     /// The name of the user in a multi-user chat
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+}
+
+#[async_trait]
+pub trait ChatStreamDisplay {
+    async fn push_message(&mut self, text: &str) -> anyhow::Result<()>;
+}
+
+pub struct MqttChatStreamDisplay {
+    buffer: String,
+    topic: String,
+    client: AsyncClient,
+}
+
+impl MqttChatStreamDisplay {
+    pub fn new(topic: &str, client: AsyncClient) -> Self {
+        Self {
+            buffer: String::new(),
+            topic: topic.to_owned(),
+            client,
+        }
+    }
+}
+
+#[async_trait]
+impl ChatStreamDisplay for MqttChatStreamDisplay {
+    async fn push_message(&mut self, text: &str) -> anyhow::Result<()> {
+        self.buffer.push_str(text);
+        self.client
+            .publish(
+                &self.topic,
+                rumqttc::QoS::AtMostOnce,
+                false,
+                self.buffer.as_bytes(),
+            )
+            .await?;
+        Ok(())
+    }
 }

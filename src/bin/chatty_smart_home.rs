@@ -4,7 +4,7 @@ use anyhow::Context;
 use async_openai::{types::CreateTranscriptionRequestArgs, Client};
 use base64::{engine::general_purpose, Engine};
 use chatty::{
-    chat_manager::{self},
+    chat_manager::{self, MqttChatStreamDisplay},
     configuration::AppConfig,
     mqtt::start_mqtt_service_with_subs,
     utils::{now_rfc3339, QUESTION_MARK_EMOJI, ROBOT_EMOJI, VOICE_TO_TEXT_TRANSCRIBE_MODEL},
@@ -19,6 +19,7 @@ use tempdir::TempDir;
 const SMART_HOME_MQTT_TOPIC: &str = "chatty/home_state/simple/v2";
 const SMART_HOME_VOICE_COMMAND: &str = "chatty/audio_command/simple";
 const SMART_HOME_RESET_CHAT_MANAGER_COMMAND: &str = "chatty/audio_command/reset_chat_manager";
+const SMART_HOME_TEXT_OUTPUT_TOPIC: &str = "chatty/audio_command/response/transcript";
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -156,8 +157,17 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                     term.write_line("")?;
                     response
                 } else {
+                    let mut mqtt_streamer = MqttChatStreamDisplay::new(
+                        SMART_HOME_TEXT_OUTPUT_TOPIC,
+                        mqtt_client.clone(),
+                    );
                     chat_manager
-                        .next_message_stream_stdout(&message, &client, &term)
+                        .next_message_stream_stdout(
+                            &message,
+                            &client,
+                            &term,
+                            Some(&mut mqtt_streamer),
+                        )
                         .await?
                 };
 

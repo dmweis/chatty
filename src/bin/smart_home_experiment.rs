@@ -139,7 +139,7 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
             response
         } else {
             chat_manager
-                .next_message_stream_stdout(&message, &client, &term)
+                .next_message_stream_stdout(&message, &client, &term, None)
                 .await?
         };
 
