@@ -7,7 +7,11 @@ use chatty::{
     chat_manager::{self, MqttChatStreamDisplay},
     configuration::AppConfig,
     mqtt::start_mqtt_service_with_subs,
-    utils::{now_rfc3339, QUESTION_MARK_EMOJI, ROBOT_EMOJI, VOICE_TO_TEXT_TRANSCRIBE_MODEL},
+    utils::{
+        now_rfc3339, CHAT_GPT_MODEL_TOKEN_LIMIT, INCREASING_TREND_EMOJI, QUESTION_MARK_EMOJI,
+        ROBOT_EMOJI, VOICE_TO_TEXT_TRANSCRIBE_MODEL,
+        VOICE_TO_TEXT_TRANSCRIBE_MODEL_ENGLISH_LANGUAGE,
+    },
 };
 use clap::Parser;
 use dialoguer::console::{style, Term};
@@ -94,12 +98,12 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     let smart_home_state_schema = schema_for!(SmartHomeState);
-    let smart_home_state_schema_json = serde_json::to_string_pretty(&smart_home_state_schema)?;
+    let smart_home_state_schema_json = serde_json::to_string(&smart_home_state_schema)?;
 
     let system_messages = format!(
-        "You are an AI in charge of a smart home. Each message will start with
+        "You are an AI assistant who can answer knowledge questions and is in charge of a smart home. Each message will start with
 json of the current home status followed by a user request.
-Respond with json of the updated smart home state followed by a message for the user.
+Respond with minified json of the updated smart home state followed by a message for the user.
 Schema for smart home state is {smart_home_state_schema_json}.
 Message for user should be prefaced with a line that says \"MESSAGE:\""
     );
@@ -130,14 +134,18 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                     .decode(&message.data)
                     .context("Failed to parse base64")?;
                 std::fs::write(&temp_auido_file, &decoded_file)?;
-                term.write_line("Transcribing\n")?;
 
                 let request = CreateTranscriptionRequestArgs::default()
                     .file(temp_auido_file)
                     .model(VOICE_TO_TEXT_TRANSCRIBE_MODEL)
+                    .language(VOICE_TO_TEXT_TRANSCRIBE_MODEL_ENGLISH_LANGUAGE)
+                    .prompt("This is a command for an ai controlling a smart home.")
                     .build()?;
 
+                term.write_line("Transcribing\n")?;
                 let response = client.audio().transcribe(request).await?;
+                term.write_line("Talking to OpenAI API\n")?;
+
                 let user_question = response.text;
 
                 let smart_home_state_json = smart_home_state.to_json()?;
@@ -171,14 +179,17 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                         .await?
                 };
 
-                match extract_json(&response) {
+                let response_message = ResponseMessage::new(response.clone());
+
+                match response_message.extract_json() {
                     Ok(Some(message)) => {
                         smart_home_state = message;
                         term.write_line(&format!(
                             "{}",
-                            style(smart_home_state.to_json()?).green()
+                            style(smart_home_state.to_json_pretty()?).green()
                         ))?;
 
+                        // ugly
                         mqtt_client
                             .publish(
                                 SMART_HOME_MQTT_TOPIC,
@@ -187,6 +198,27 @@ Message for user should be prefaced with a line that says \"MESSAGE:\""
                                 smart_home_state.to_json()?,
                             )
                             .await?;
+
+                        if let Ok(formatted_message) =
+                            response_message.message_with_formatted_json()
+                        {
+                            let updated_message = format!(
+                                "{}\n\n{} Estimated usage {}/{} tokens used",
+                                formatted_message,
+                                INCREASING_TREND_EMOJI,
+                                chat_manager.count_tokens(),
+                                CHAT_GPT_MODEL_TOKEN_LIMIT
+                            );
+
+                            mqtt_client
+                                .publish(
+                                    SMART_HOME_TEXT_OUTPUT_TOPIC,
+                                    QoS::AtMostOnce,
+                                    true,
+                                    updated_message,
+                                )
+                                .await?;
+                        }
                     }
                     Err(error) => {
                         term.write_line(&format!("Failed to parse json {:?}", error))?;
@@ -227,25 +259,6 @@ pub struct AudioMessage {
     pub format: String,
 }
 
-fn extract_json(message: &str) -> anyhow::Result<Option<SmartHomeState>> {
-    let json_range = message
-        .find('{')
-        .and_then(|start| message.rfind('}').map(|end| (start, end + 1)));
-
-    if let Some((json_start, json_end)) = json_range {
-        if let Some(json) = message.get(json_start..json_end) {
-            match SmartHomeState::from_json(json) {
-                Ok(parsed_state) => return Ok(Some(parsed_state)),
-                Err(error) => {
-                    // you could try again by showing ChatGPT the error :D
-                    return Err(anyhow::anyhow!("Failed to parse json {:?}", error));
-                }
-            }
-        }
-    }
-    Ok(None)
-}
-
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, Default)]
 pub struct SmartHomeState {
     pub lights: HomeLightsState,
@@ -260,8 +273,12 @@ impl SmartHomeState {
         Ok(serde_json::from_slice(data)?)
     }
 
-    pub fn to_json(&self) -> anyhow::Result<String> {
+    pub fn to_json_pretty(&self) -> anyhow::Result<String> {
         Ok(serde_json::to_string_pretty(self)?)
+    }
+
+    pub fn to_json(&self) -> anyhow::Result<String> {
+        Ok(serde_json::to_string(self)?)
     }
 }
 
@@ -294,8 +311,15 @@ pub enum LightState {
 
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone)]
 pub enum ColorMode {
-    Temperature { color_temperature: ColorTemperature },
-    Color { hex_color: String },
+    Temperature {
+        color_temperature: ColorTemperature,
+    },
+
+    Color {
+        /// # Hex color
+        /// expected pattern #RRGGBB
+        hex_color: String,
+    },
 }
 
 impl Default for ColorMode {
@@ -315,4 +339,49 @@ pub enum ColorTemperature {
     Neutral,
     Warm,
     Warmest,
+}
+
+struct ResponseMessage {
+    pub content: String,
+}
+
+impl ResponseMessage {
+    pub fn new(content: String) -> Self {
+        Self { content }
+    }
+
+    fn extract_json(&self) -> anyhow::Result<Option<SmartHomeState>> {
+        let json_range = self
+            .content
+            .find('{')
+            .and_then(|start| self.content.rfind('}').map(|end| (start, end + 1)));
+
+        if let Some((json_start, json_end)) = json_range {
+            if let Some(json) = self.content.get(json_start..json_end) {
+                match SmartHomeState::from_json(json) {
+                    Ok(parsed_state) => return Ok(Some(parsed_state)),
+                    Err(error) => {
+                        // you could try again by showing ChatGPT the error :D
+                        return Err(anyhow::anyhow!("Failed to parse json {:?}", error));
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn message_with_formatted_json(&self) -> anyhow::Result<String> {
+        let extracted = self.extract_json()?;
+
+        let json_range = self
+            .content
+            .find('{')
+            .and_then(|start| self.content.rfind('}').map(|end| (start..end + 1)))
+            .context("Failed to find range")?;
+
+        let formatted = extracted.context("Failed to get json")?.to_json_pretty()?;
+        let mut message = self.content.clone();
+        message.replace_range(json_range, &formatted);
+        Ok(message)
+    }
 }
