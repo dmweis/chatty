@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["get_project_dirs",""]],"struct":[["AppConfig",""],["MqttConfig",""]]};

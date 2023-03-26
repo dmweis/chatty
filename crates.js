@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["audio_chat","audio_mqtt_server","audio_to_mqtt","chatty","chatty_smart_home","gpt_cli","smart_home_experiment","smart_home_experiment_v2"];

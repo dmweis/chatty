@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"chatty":[["impl&lt;T:&nbsp;<a class=\"trait\" href=\"https://doc.rust-lang.org/1.68.1/alloc/string/trait.ToString.html\" title=\"trait alloc::string::ToString\">ToString</a>&gt; History&lt;T&gt; for <a class=\"struct\" href=\"chatty/cli_history/struct.InMemoryHistory.html\" title=\"struct chatty::cli_history::InMemoryHistory\">InMemoryHistory</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

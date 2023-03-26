@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["record_audio_with_cli","this is a weird method because it talks to the cli"],["record_audio_with_cli_to_memory","this is a weird method because it talks to the cli"]]};

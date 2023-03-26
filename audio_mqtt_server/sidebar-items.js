@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":[["AUDIO_MQTT_TOPIC",""]],"fn":[["main",""]],"struct":[["AudioMessage",""],["Cli",""]]};
