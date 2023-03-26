@@ -41,9 +41,9 @@ pub async fn start_mqtt_service_with_subs(
     // weird method
     let mut mqttoptions =
         MqttOptions::new(&config.client_id, &config.broker_host, config.broker_port);
-    info!("Starting MQTT server with options {:?}", mqttoptions);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     mqttoptions.set_max_packet_size(MQTT_MAX_PACKET_SIZE, MQTT_MAX_PACKET_SIZE);
+    info!("Starting MQTT server with options {:?}", mqttoptions);
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
     let (sender, receiver) = channel(10);
